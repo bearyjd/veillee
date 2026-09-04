@@ -286,3 +286,34 @@ verified only by hand.
 
 All nine are now listed in HANDOFF.md under "What is claimed here but not covered
 by a test", so the edge of the suite is written down rather than implied.
+
+## Closing the nine gaps
+
+Asked to close all nine. Writing the tests found three real defects that the
+existing suite could not have caught:
+
+1. **`autocommit()` could raise.** Its contract is that a git problem never
+   takes the site down mid-sentence, but `data_dir.mkdir()` sat outside the
+   `try`, so an unwritable `data/` raised straight into the request. Moved in.
+2. **Autosave on blur was half implemented.** The rich editor only bound
+   `window`'s blur - which fires when the whole browser loses focus, not when he
+   clicks from the text onto the page. The textarea fallback had a proper
+   handler; the editor most people would use did not. Now bound to `focusout`,
+   with a test asserting the words reach disk faster than the five-second timer
+   could have written them.
+3. **The editor was a keyboard trap.** Tab indents lists inside ProseMirror
+   rather than moving focus on, which fails WCAG 2.1.2 and is invisible to
+   axe-core. Escape now leaves the writing box, focus moves to the next control,
+   and a hint appears under the box whenever it has focus - because the guideline
+   requires the user be told the method, not just given one.
+
+Plus one design change found by a test hitting the wrong instance: an explicitly
+exported `VEILLEE_PORT` now beats the pinned value in `.env`, so a check can be
+pointed at another instance without editing files.
+
+New coverage: 12 git tests, 15 passcode tests (including open-redirect refusal
+and a five-year cookie), 11 worker-loop tests, 13 transcript tests (that his
+pages never contain the machine words, and that a second edit cannot overwrite
+the machine original), 20 deployment tests covering `runtime.sh`, `backup.sh`,
+`morning-check.sh` and `up.sh` against a stub runtime, plus the loopback-only
+bind. 187 unit and integration tests, up from 116.

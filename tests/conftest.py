@@ -45,6 +45,24 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
 
 
 @pytest.fixture
+def git_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
+    """Like `settings`, but with data/ auto-commit switched ON.
+
+    The default fixture disables it so the bulk of the suite is not slowed by a
+    subprocess per save. Anything asserting the archive's git behaviour must use
+    this one, or it is testing nothing.
+    """
+    monkeypatch.setenv("VEILLEE_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("VEILLEE_DB_PATH", str(tmp_path / "veillee.db"))
+    monkeypatch.setenv("VEILLEE_QUESTIONS_DIR", str(REPO_ROOT / "questions"))
+    monkeypatch.setenv("VEILLEE_GIT_AUTOCOMMIT", "1")
+    resolved = load_settings()
+    resolved.ensure_dirs()
+    initialise(resolved.db_path)
+    return resolved
+
+
+@pytest.fixture
 def bank(settings: Settings) -> QuestionBank:
     return load_bank(settings.questions_dir, settings.custom_questions_path)
 
@@ -148,3 +166,9 @@ def live_server_with_passcode(tmp_path: Path) -> Iterator[LiveServer]:
         tmp_path,
         {"VEILLEE_PASSCODE": "seanchai", "VEILLEE_SECRET_KEY": "test-key-not-a-secret"},
     )
+
+
+@pytest.fixture
+def live_server_with_git(tmp_path: Path) -> Iterator[LiveServer]:
+    """A real server with data/ auto-commit on, so the promise is exercised."""
+    yield from _start_server(tmp_path, {"VEILLEE_GIT_AUTOCOMMIT": "1"})

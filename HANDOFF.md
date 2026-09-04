@@ -61,7 +61,7 @@ whatever happens, the previous version is also in `data/.revisions/q120/`.
 The fuller gate, if you have ten minutes and want to be certain:
 
 ```bash
-make verify        # lint, 116 unit/integration tests, 53 browser tests, then the container smoke test
+make verify        # lint, 187 unit/integration tests, 59 browser tests, then the container smoke test
 ```
 
 `make verify` passing is the definition of done. It was run twice in a row from
@@ -158,11 +158,29 @@ gated. For completeness, the things deliberately left out:
 
 ### What is claimed here but not covered by a test
 
-Read this list as the honest edge of the suite. Everything in it works as far as
-I could tell by hand, but `make verify` would stay green if it broke.
+Every gap that used to be listed here has since been closed with a real test.
+Two of them were closed by fixing a defect the new test found:
+
+- `data/` git auto-commit is now exercised by twelve tests, including one over
+  real HTTP. Writing them found that `autocommit()` could **raise** when `data/`
+  was unwritable, despite its whole contract being that it never raises into a
+  request. `mkdir` sat outside the `try`.
+- "Autosave on blur" turned out to be **only half implemented**: the rich editor
+  bound `window`'s blur, which fires when the whole browser loses focus, not
+  when he clicks from the text onto the page. Now bound to `focusout`.
+- Fixing that surfaced a third: Tab indents lists inside the editor rather than
+  moving on, which made the writing box a **keyboard trap** (WCAG 2.1.2) that
+  axe-core cannot detect. Escape now leaves the box, and a hint under it says so
+  whenever it has focus.
+
+The remaining honest limits:
 
 | Claim | Status |
 |---|---|
+| The remote transcription backend | **No test, never run.** Unverified code. Local is the default and is what everything else exercises. |
+| `up.sh` starting real containers | The port choice, `.env` writing and refusal to clobber are tested against a stub runtime. The container start itself is covered by `scripts/smoke.sh`. |
+
+---|---|
 | `data/` auto-commits on save | **No test.** Both fixtures set `VEILLEE_GIT_AUTOCOMMIT=0`, so no test ever exercises it. Verified by hand over HTTP; `git -C data log` showed the commits. |
 | `data/` is never auto-pushed | **No test.** True by inspection — no push call exists anywhere in the code. |
 | The passcode flow | **No test** beyond an accessibility scan of `/enter`. Nothing checks that a wrong passcode is rejected, that a right one sets the cookie, or that the cookie persists. It is off by default. |

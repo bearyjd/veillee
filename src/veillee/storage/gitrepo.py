@@ -60,8 +60,10 @@ def _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
 def ensure_repo(data_dir: Path) -> bool:
     """Make sure data/ is a git repo with an identity. Returns True if usable."""
     global _last_status
-    data_dir.mkdir(parents=True, exist_ok=True)
     try:
+        # Inside the try: this raises if data/ is a file, or unwritable, and
+        # this function's whole contract is that it never raises into a request.
+        data_dir.mkdir(parents=True, exist_ok=True)
         if not (data_dir / ".git").exists():
             created = _run(["init", "-q", "-b", "main"], data_dir)
             if created.returncode != 0:

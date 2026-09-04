@@ -7,7 +7,9 @@ cd "$(dirname "$0")/.."
 source scripts/runtime.sh
 
 COMPOSE="$(detect_compose 2>/dev/null || true)"
-PORT="$(configured_port)"; PORT="${PORT:-${VEILLEE_PORT:-8000}}"
+# An explicitly exported VEILLEE_PORT wins over the pinned value in .env, so you
+# can point this at another instance without editing anything.
+PORT="${VEILLEE_PORT:-$(configured_port)}"; PORT="${PORT:-8000}"
 BASE="http://127.0.0.1:$PORT"
 
 PROBE_ID="q120"
@@ -38,6 +40,10 @@ printf "Checking Veillee on %s\n" "$BASE"
 
 # 1. Is it up? If not, try to start it once before giving up.
 if ! curl -sf --max-time 4 "$BASE/healthz" >/dev/null 2>&1; then
+  # Tests set this so a check can never start containers as a side effect.
+  if [ "${VEILLEE_NO_AUTOSTART:-0}" = "1" ]; then
+    problem "Nothing is answering on $BASE." "Start it with: ./scripts/up.sh"
+  fi
   printf "  not running — starting it\n"
   [ -z "$COMPOSE" ] && problem "No container runtime found." \
     "Install podman or docker, then run: ./scripts/up.sh"

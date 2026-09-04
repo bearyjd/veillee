@@ -23,7 +23,10 @@
 <!-- The editor. If the bundle fails to load, the textarea below takes over and
      autosave keeps working exactly the same way. -->
 <div id="editor-frame" class="editor-frame"
-     data-question-id="{{ question.id }}"></div>
+     data-question-id="{{ question.id }}"
+     aria-describedby="editor-escape-hint"></div>
+
+<p class="escape-hint" id="editor-escape-hint">Press Esc to leave the writing box.</p>
 
 <textarea id="editor-fallback" class="editor-fallback" hidden
           aria-label="Your answer">{{ answer.body if answer else '' }}</textarea>

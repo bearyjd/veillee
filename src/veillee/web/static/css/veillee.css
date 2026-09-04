@@ -287,6 +287,18 @@ a.card:hover, a.card:focus { border-color: var(--accent); background: var(--acce
   resize: vertical;
 }
 
+/* Only shown while he is actually in the box, so it never becomes clutter.
+   Kept in the accessibility tree at all times via aria-describedby. */
+.escape-hint {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  color: var(--ink-faint);
+  margin: -0.25rem 0 0.5rem;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.editor-frame:focus-within + .escape-hint { opacity: 1; }
+
 /* Quiet, never a demand for attention. */
 .save-state {
   font-family: var(--sans);

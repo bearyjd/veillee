@@ -148,6 +148,30 @@
       save("interval");
     }, AUTOSAVE_MS);
 
+    /* Leaving the editor saves immediately, without waiting for the timer.
+       `blur` does not bubble from the contenteditable, and window blur only
+       fires when the whole browser loses focus - not when he clicks from the
+       text onto the page. `focusout` does bubble, so it catches the case that
+       actually happens. */
+    frame.addEventListener("focusout", function (event) {
+      if (frame.contains(event.relatedTarget)) return; // still inside the editor
+      save("blur");
+    });
+
+    /* Tab indents a list inside the editor rather than moving on, which would
+       otherwise trap a keyboard user in the writing area (WCAG 2.1.2). Escape
+       is the documented way out, and the hint below the box says so whenever
+       the editor has focus. */
+    frame.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      var box = frame.querySelector('[contenteditable="true"]');
+      if (box) box.blur();
+      var onward = document.querySelector(".button-row a.button, .button-row button");
+      if (onward) onward.focus();
+      save("escape");
+    });
+
     window.addEventListener("blur", function () {
       save("blur");
     });
