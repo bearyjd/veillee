@@ -91,7 +91,9 @@ READBACK=$(curl -sf "$BASE/api/answer/$PROBE_ID" \
 printf "  write and read back: ok\n"
 
 # 3. Is the archive readable by a human with a file browser?
-COUNT=$(find data/answers -name '*.md' 2>/dev/null | wc -l)
+# No answers directory yet is the ordinary state before he writes anything,
+# not a failure.
+COUNT=$(find data/answers -name '*.md' 2>/dev/null | wc -l || echo 0)
 DISK=$(echo "$HEALTH" | python3 -c "import sys,json;print(json.load(sys.stdin)['disk'].get('free_human','?'))" 2>/dev/null)
 BACKUP=$(echo "$HEALTH" | python3 -c "import sys,json;print(json.load(sys.stdin).get('last_backup','?'))" 2>/dev/null)
 printf "  answers on disk: %s\n" "$COUNT"

@@ -317,3 +317,26 @@ pages never contain the machine words, and that a second edit cannot overwrite
 the machine original), 20 deployment tests covering `runtime.sh`, `backup.sh`,
 `morning-check.sh` and `up.sh` against a stub runtime, plus the loopback-only
 bind. 187 unit and integration tests, up from 116.
+
+### A bug only a clean checkout could find
+
+The first double-verify after closing the nine gaps **failed both runs**, on a
+test that passed in the working tree. The cause was worth the trip:
+
+`scripts/runtime.sh` began with `set -euo pipefail`. It is a *sourced* library,
+so that silently imposed `-e` on every caller - including `morning-check.sh`,
+which sets `set -uo pipefail` deliberately so it can report failures itself
+rather than dying on the first non-zero return. With `-e` forced on,
+`find data/answers` on a checkout that has no answers yet - the ordinary state
+before he writes anything - killed the script *after* the probe had already
+passed, so it printed "write and read back: ok" and then exited 1.
+
+It passed locally only because the working tree happened to have a `data/`
+directory. Running from a fresh clone is what surfaced it.
+
+Fixed by removing the shell options from the sourced library (every caller
+already sets its own, and morning-check's choice not to use `-e` is now
+respected), and by treating a missing answers directory as zero rather than an
+error. Two regression tests: one runs morning-check against a checkout with no
+`data/` at all, the other asserts that sourcing `runtime.sh` cannot switch on
+errexit behind its caller's back.

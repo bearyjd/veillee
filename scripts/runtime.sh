@@ -6,8 +6,11 @@
 # run as root. Rootful docker maps uid to uid, so it must run as you. Getting
 # this wrong means an archive you cannot read with a file browser, which defeats
 # the entire point of storing plain markdown.
-
-set -euo pipefail
+#
+# This file is *sourced*, so it deliberately sets no shell options. It used to
+# `set -euo pipefail`, which silently imposed `-e` on every caller - including
+# morning-check.sh, which sets `set -uo pipefail` on purpose so it can report
+# failures itself rather than dying on the first non-zero return.
 
 detect_compose() {
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then

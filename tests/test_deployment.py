@@ -211,6 +211,54 @@ class TestMorningCheck:
         after = httpx.get(live_server.url("/api/answer/q120"), timeout=30).json()["body"]
         assert after == original, "the morning check overwrote a real answer"
 
+    def test_it_passes_on_a_checkout_with_no_answers_yet(
+        self, live_server: LiveServer, tmp_path: Path
+    ) -> None:
+        """The ordinary state before he has written anything.
+
+        This failed on a clean checkout while passing in a working tree that
+        happened to have a data/ directory: `runtime.sh` used to `set -e`, which
+        a sourced file imposes on its caller, so `find data/answers` on a
+        missing directory killed the script after the probe had already passed.
+        """
+        work = tmp_path / "repo"
+        (work / "scripts").mkdir(parents=True)
+        for name in ("morning-check.sh", "runtime.sh"):
+            target = work / "scripts" / name
+            target.write_text((SCRIPTS / name).read_text(encoding="utf-8"), encoding="utf-8")
+            target.chmod(0o755)
+        assert not (work / "data").exists()
+
+        port = live_server.base_url.rsplit(":", 1)[1]
+        result = subprocess.run(
+            [str(work / "scripts" / "morning-check.sh")],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(work),
+            env={**os.environ, "VEILLEE_PORT": port, "VEILLEE_NO_AUTOSTART": "1"},
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "PASS" in result.stdout
+        assert "answers on disk: 0" in result.stdout
+
+    def test_sourcing_runtime_does_not_change_the_callers_shell_options(self) -> None:
+        """A sourced library must not turn on -e behind its caller's back."""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                f'set +e; source {SCRIPTS / "runtime.sh"}; case "$-" in *e*) exit 1;; esac; exit 0',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert result.returncode == 0, "runtime.sh switched on errexit for its caller"
+
     def test_it_fails_clearly_when_nothing_is_running(self, tmp_path: Path) -> None:
         result = _run(
             "morning-check.sh",
