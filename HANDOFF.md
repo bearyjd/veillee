@@ -86,10 +86,20 @@ accordingly, and the smoke test asserts the files are readable by *you*.
 
 **Milkdown Crepe shipped; EasyMDE was not needed.** The esbuild bundle worked
 inside the 45-minute box (after teaching esbuild to drop the KaTeX fonts that the
-Crepe stylesheet pulls in). `static/vendor/editor.js` is 2.5 MB and committed. A
-browser test asserts which editor is actually live, so this claim is checked
-rather than assumed. If the bundle ever fails to load, the page falls back to a
-plain textarea and **autosave works identically** — that path is tested too.
+Crepe stylesheet pulls in). `static/vendor/editor.js` is 2.5 MB and committed.
+Typing `## ` or `- ` renders as a real heading or bullet as he types; the file on
+disk stays plain markdown. If the bundle ever fails to load, the page falls back
+to a plain textarea and **autosave works identically** — that path is tested by
+blocking the bundle request outright.
+
+**The toolbar is Veillee's own, not Milkdown's.** Crepe ships a toolbar that only
+appears once you have already selected text, and in practice it never became
+visible at all. That is no use to someone who does not know it is there, so the
+page renders its own row of five always-visible buttons — bold, italic, heading,
+bullet list, quote, and nothing more — each a 48px touch target. Every button has
+a test asserting the **markdown it writes to disk**, because a button that styles
+the screen and writes nothing is worse than no button. Heading toggles back to
+plain text on a second press, so it is never a one-way door.
 
 **Fourteen questions were rewritten.** A test guarding the "never yes/no" rule
 caught fourteen questions that opened with "Was there…" or "Is there…". They are

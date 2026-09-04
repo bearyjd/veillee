@@ -56,17 +56,57 @@ class TestGettingAround:
         assert "%" not in body
         assert page.locator("progress").count() == 0
 
-    def test_the_editor_that_shipped_is_recorded(
+    def test_the_rich_editor_is_the_one_that_loaded(
         self, page: object, live_server: LiveServer
     ) -> None:
-        """Which editor loaded is a fact the handover needs to state truthfully."""
+        """The handover claims Milkdown shipped. Assert exactly that.
+
+        An earlier version of this test only checked that *one of the two*
+        editors was live, which passed whether the rich editor loaded or the
+        plain-textarea emergency fallback did. That is not the claim being made,
+        so it now asserts the rich editor specifically.
+        """
         page.goto(live_server.url("/question/q012"), wait_until="load")  # type: ignore[attr-defined]
         editor_locator(page)
-        milkdown = page.locator(".ProseMirror").count() > 0
-        fallback_visible = page.locator("#editor-fallback").is_visible()
-        assert milkdown or fallback_visible
-        # Exactly one of them is in use, never both.
-        assert milkdown != fallback_visible
+
+        assert page.locator(".milkdown").count() == 1, "the Milkdown editor did not load"
+        assert page.locator(".ProseMirror[contenteditable='true']").count() == 1
+        assert not page.locator("#editor-fallback").is_visible(), "the fallback took over"
+        assert page.evaluate("() => !!(window.VeilleeEditor && window.VeilleeEditor.mount)")
+
+    def test_it_is_a_wysiwyg_editor_not_a_markdown_box(
+        self, page: object, live_server: LiveServer
+    ) -> None:
+        """Typing markdown must render as rich text as he types it."""
+        page.goto(live_server.url("/question/q012"), wait_until="load")  # type: ignore[attr-defined]
+        editor = editor_locator(page)
+        editor.click()
+        page.keyboard.type("## A heading", delay=10)
+        page.keyboard.press("Enter")
+        page.keyboard.type("- a bullet", delay=10)
+        page.wait_for_timeout(600)
+
+        assert page.locator(".ProseMirror h2").count() == 1, "markdown did not render live"
+        assert page.locator(".ProseMirror ul li").count() == 1
+        # The literal characters must be gone from the screen.
+        assert "##" not in page.locator(".ProseMirror").inner_text()
+
+    def test_the_fallback_editor_hides_the_toolbar(
+        self, browser: object, live_server: LiveServer
+    ) -> None:
+        """With the plain textarea he types markdown himself; buttons would lie."""
+        context = browser.new_context()  # type: ignore[attr-defined]
+        # Block the bundle outright: the real failure this path exists for is
+        # the file not arriving, not a global being cleared.
+        context.route("**/vendor/editor.js", lambda route: route.abort())
+        fallback_page = context.new_page()
+        fallback_page.goto(live_server.url("/question/q012"), wait_until="load")
+        fallback_page.wait_for_selector("#editor-fallback", state="visible", timeout=15_000)
+
+        assert not fallback_page.locator("#editor-toolbar").is_visible()
+        assert fallback_page.locator("#editor-fallback").is_visible()
+        assert fallback_page.locator(".milkdown").count() == 0
+        context.close()
 
 
 class TestSkippingAndPuttingOff:

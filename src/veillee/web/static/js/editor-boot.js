@@ -27,9 +27,28 @@
     initial = fallback.value || "";
   }
 
+  var toolbar = document.getElementById("editor-toolbar");
   var editor = null;
   var dirty = false;
   var lastSaved = initial;
+
+  /* The toolbar only makes sense with the rich editor. With the plain-textarea
+     fallback he is typing markdown directly, so the buttons are hidden rather
+     than left there doing nothing. */
+  function wireToolbar(instance) {
+    if (!toolbar) return;
+    toolbar.hidden = false;
+    toolbar.addEventListener("click", function (event) {
+      var button = event.target.closest("button[data-action]");
+      if (!button) return;
+      event.preventDefault();
+      var action = button.getAttribute("data-action");
+      if (typeof instance[action] === "function") {
+        instance[action]();
+        markDirty();
+      }
+    });
+  }
 
   function readBody() {
     if (editor) {
@@ -155,6 +174,7 @@
       .then(function (instance) {
         editor = instance;
         nameTheEditor();
+        wireToolbar(instance);
         start();
       })
       .catch(function (err) {

@@ -222,6 +222,39 @@ a.card:hover, a.card:focus { border-color: var(--accent); background: var(--acce
 
 /* ---- the editor ----------------------------------------------------- */
 
+/* Five buttons, always on show. Big enough for eighty-year-old hands and for a
+   fingertip on an iPad, and never more than five. */
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+/* `display: flex` beats the `hidden` attribute's default `display: none`, so
+   without this the toolbar shows in fallback mode with nothing behind it. */
+.editor-toolbar[hidden] { display: none; }
+.editor-toolbar button {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0.5rem 0.9rem;
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.editor-toolbar button:hover,
+.editor-toolbar button:focus {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+.editor-toolbar button strong,
+.editor-toolbar button em { font-size: 1.15rem; }
+
+
 .editor-frame {
   background: var(--paper-raised);
   border: 1px solid var(--rule);

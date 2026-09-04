@@ -222,3 +222,35 @@ RUN1_EXIT=0                           RUN2_EXIT=0
 Both green. 156 tests, plus 18 smoke checks against real containers built from
 an empty archive. Stopping here, as instructed: no refactoring, no polish, no
 phase-two work.
+
+## After the gate — the toolbar was missing
+
+Asked directly whether there was a WYSIWYG editor, and checking the running site
+rather than repeating the earlier claim, two things turned out to be true:
+
+- **The rich editor was genuinely live and genuinely WYSIWYG.** Typing `## `
+  produced a real `<h2>`, `- ` a real list item, with no console errors.
+- **There was no toolbar at all.** The specification asked for bold, italic,
+  heading, bullet list and quote. Crepe's own toolbar element was in the DOM but
+  never became visible — not on load, and not on selection either.
+
+Worse, the claim in the earlier handover that "a browser test asserts which
+editor is live" was **not true**. That test asserted only that *exactly one of
+the two* editors was in use, which passes whether the rich editor loaded or the
+emergency textarea did. It was never checking the thing it was cited for.
+
+Fixed:
+
+- Five always-visible buttons, rendered by Veillee rather than Milkdown, wired to
+  the commonmark commands through Crepe's editor instance. 48px targets, labelled
+  for screen readers, and focus returns to the text after every press.
+- Heading toggles back to plain text on a second press.
+- The toolbar is hidden entirely when the plain-textarea fallback is in use,
+  where he is typing markdown himself and buttons would be lying.
+- **A real bug found by the test for that:** `display: flex` on the toolbar beat
+  the `hidden` attribute's `display: none`, so the toolbar appeared in fallback
+  mode with nothing behind it. Every button would have done nothing.
+- The weak editor test was replaced with one that asserts Milkdown specifically,
+  one that asserts markdown renders live as rich text, and one that blocks the
+  bundle request to prove the fallback path.
+- Eleven new toolbar tests, each asserting the markdown that reached the disk.

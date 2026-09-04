@@ -8,6 +8,18 @@
 <h1 class="question-text">{{ question.text }}</h1>
 {% if question.hint %}<p class="hint">{{ question.hint }}</p>{% endif %}
 
+<!-- Five buttons, always visible. Milkdown's own toolbar only appears once you
+     already know to select text first, which is no use to someone who does not
+     know it is there. Hidden entirely if the plain-textarea fallback is in use. -->
+<div id="editor-toolbar" class="editor-toolbar" role="toolbar"
+     aria-label="Formatting" aria-controls="editor-frame" hidden>
+  <button type="button" data-action="bold" aria-label="Bold"><strong>B</strong></button>
+  <button type="button" data-action="italic" aria-label="Italic"><em>I</em></button>
+  <button type="button" data-action="heading" aria-label="Heading">Heading</button>
+  <button type="button" data-action="bulletList" aria-label="Bullet list">&bull; List</button>
+  <button type="button" data-action="quote" aria-label="Quote">&ldquo; Quote</button>
+</div>
+
 <!-- The editor. If the bundle fails to load, the textarea below takes over and
      autosave keeps working exactly the same way. -->
 <div id="editor-frame" class="editor-frame"
