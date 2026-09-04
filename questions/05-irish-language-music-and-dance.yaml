@@ -1,0 +1,26 @@
+chapter:
+  order: 5
+  slug: irish-language-music-and-dance
+  title: Irish language, music, and dance
+questions:
+  - id: q035
+    text: Who in your family had Irish, and when did you hear them use it?
+    follow_ups:
+      - Did they use it when they did not want you to understand?
+  - id: q036
+    text: What Irish words or phrases are still in your head today?
+    hint: Say them however you say them. Spelling does not matter here.
+  - id: q037
+    text: What songs did people sing in your house, and who sang them?
+  - id: q038
+    text: Was there an instrument in the house, and did anyone play it well?
+  - id: q039
+    text: Describe a night when there was music — where it was, who came, how late it went.
+  - id: q040
+    text: Did you dance, and who taught you?
+  - id: q041
+    text: What tune can you still hum that nobody around you seems to know any more?
+  - id: q042
+    text: Was Irish something to be proud of when you were young, or something to be quiet about?
+  - id: q043
+    text: What was lost when your generation stopped speaking Irish at home?

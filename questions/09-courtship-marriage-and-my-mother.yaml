@@ -1,0 +1,24 @@
+chapter:
+  order: 9
+  slug: courtship-marriage-and-my-mother
+  title: Courtship, marriage, and my mother
+questions:
+  - id: q070
+    text: Where did young people go to meet each other when you were that age?
+  - id: q071
+    text: How did you and my mother first meet?
+    hint: The actual day, if you can find it.
+  - id: q072
+    text: What did you notice about her first?
+  - id: q073
+    text: What did you do on the first evening you spent together?
+  - id: q074
+    text: How did you know, and how long did it take you to say it?
+  - id: q075
+    text: Tell me about the wedding day — the church, the weather, who came, what went wrong.
+  - id: q076
+    text: Where did the two of you live first, and what was that place like?
+  - id: q077
+    text: What was she like in a way that a photograph would never show?
+  - id: q078
+    text: What did the two of you argue about, and how did it usually end?

@@ -1,0 +1,26 @@
+chapter:
+  order: 6
+  slug: work-and-money
+  title: Work and money
+questions:
+  - id: q044
+    text: What was the first work you were ever paid for, and what did you get?
+    follow_ups:
+      - What did you spend it on?
+  - id: q045
+    text: What did your father do all day, and did you ever see him doing it?
+  - id: q046
+    text: Describe your hands at the end of a working day when you were twenty.
+  - id: q047
+    text: What job did you hold the longest, and what did the first hour of that day look like?
+  - id: q048
+    text: Who did you work alongside that you still think about?
+  - id: q049
+    text: Was there ever a time when money was genuinely short, and how did the house feel then?
+    hint: Only as much as you want to say.
+  - id: q050
+    text: What did you save for, and did you ever get it?
+  - id: q051
+    text: What is the hardest physical work you have ever done?
+  - id: q052
+    text: What did you learn about money from your parents that you passed on to us without meaning to?

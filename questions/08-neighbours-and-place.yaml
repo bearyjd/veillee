@@ -1,0 +1,24 @@
+chapter:
+  order: 8
+  slug: neighbours-and-place
+  title: Neighbours and place
+questions:
+  - id: q062
+    text: Who lived in the house nearest yours, and what were they like?
+  - id: q063
+    text: Who came into your kitchen without knocking?
+  - id: q064
+    text: Describe the walk from your door to the nearest shop.
+    hint: What you passed, who you would meet, how long it took.
+  - id: q065
+    text: Was there someone in the townland everyone had a story about?
+  - id: q066
+    text: Where did people gather when they had nothing in particular to do?
+  - id: q067
+    text: What happened in your community when somebody died?
+    follow_ups:
+      - What was a wake actually like?
+  - id: q068
+    text: What did the place sound like at night?
+  - id: q069
+    text: If you stood at your front door as a boy and looked out, what did you see?

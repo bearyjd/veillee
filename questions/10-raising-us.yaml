@@ -1,0 +1,24 @@
+chapter:
+  order: 10
+  slug: raising-us
+  title: Raising us
+questions:
+  - id: q079
+    text: Where were you the day each of us was born, and what do you remember of it?
+  - id: q080
+    text: What were we each like as small children?
+    hint: One at a time, if it is easier.
+  - id: q081
+    text: What did you find hardest about being a father?
+  - id: q082
+    text: What did you do with us that you actually enjoyed, not just put up with?
+  - id: q083
+    text: What did you want for us that you never said out loud?
+  - id: q084
+    text: What did you do differently from your own father, and was it deliberate?
+  - id: q085
+    text: What is a day with us you would live again exactly as it was?
+  - id: q086
+    text: Was there something you worried about with us that we never knew?
+  - id: q087
+    text: What do you think we got from you, for better or worse?

@@ -1,0 +1,33 @@
+chapter:
+  order: 2
+  slug: childhood-and-home
+  title: Childhood and home
+questions:
+  - id: q010
+    text: Walk me through the house you grew up in, room by room, starting at the front door.
+    hint: Take your time. What was underfoot, what was on the walls.
+    follow_ups:
+      - Which room did everyone actually sit in?
+      - Was there a room nobody used?
+  - id: q011
+    text: Where did you sleep, and who else was in the room?
+  - id: q012
+    text: What did your mother's kitchen smell like on a Sunday?
+    follow_ups:
+      - And on an ordinary Tuesday?
+  - id: q013
+    text: How was the house heated, and whose job was it to keep it going?
+  - id: q014
+    text: What did you do with a whole free afternoon when you were nine or ten?
+    hint: Where you went, who with, what you carried.
+  - id: q015
+    text: Who were your brothers and sisters, and what was each of them like as a child?
+  - id: q016
+    text: What was the first thing you remember being afraid of?
+  - id: q017
+    text: What got you in trouble, and what happened when you were caught?
+    follow_ups:
+      - Who did the giving out — your mother or your father?
+  - id: q018
+    text: What is the earliest thing you can remember at all?
+    hint: Even a fragment — a colour, a sound, being carried.

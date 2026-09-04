@@ -1,0 +1,24 @@
+chapter:
+  order: 12
+  slug: sayings-superstitions-and-cures
+  title: Sayings, superstitions, and cures
+questions:
+  - id: q097
+    text: What did your mother say that you can still hear in her voice?
+    hint: Word for word, if it will come.
+  - id: q098
+    text: What did your father say when he was pleased, and when he was not?
+  - id: q099
+    text: What were you told never to do, and what was supposed to happen if you did?
+  - id: q100
+    text: Was there a cure in your family — for a burn, a sprain, a bad chest?
+    follow_ups:
+      - Who had the cure, and how did they get it?
+  - id: q101
+    text: What was said about the fairies, and did anyone actually believe it?
+  - id: q102
+    text: What did people do for luck, and what was thought to bring bad luck?
+  - id: q103
+    text: What was said in your house when somebody was sick, or dying, or newly dead?
+  - id: q104
+    text: What is a phrase you use that you know came straight from your parents?

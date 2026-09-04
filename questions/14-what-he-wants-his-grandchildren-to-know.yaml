@@ -1,0 +1,22 @@
+chapter:
+  order: 14
+  slug: what-he-wants-his-grandchildren-to-know
+  title: What he wants his grandchildren to know
+questions:
+  - id: q113
+    text: What do you want your grandchildren to know about where they came from?
+  - id: q114
+    text: What were you like at their age, that they would be surprised to hear?
+  - id: q115
+    text: What advice would you give that you know nobody takes?
+  - id: q116
+    text: What are you proudest of that has nothing to do with work?
+  - id: q117
+    text: What would you do differently, and what would you do exactly the same?
+  - id: q118
+    text: What do you know now that would have been worth knowing at twenty-five?
+  - id: q119
+    text: Is there anything you have never told us that you would like written down?
+    hint: Only if you want to. Nobody will read this before you say so.
+  - id: q120
+    text: What would you like said about you?

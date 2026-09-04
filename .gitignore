@@ -1,0 +1,19 @@
+# The index is rebuildable from data/ with `veillee reindex`.
+veillee.db
+veillee.db-wal
+veillee.db-shm
+
+# His words are their own git repository, versioned separately.
+data/
+
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/editor/node_modules/
+build/editor/package-lock.json
+test-results/
+exports/
+*.log

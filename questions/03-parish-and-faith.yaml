@@ -1,0 +1,26 @@
+chapter:
+  order: 3
+  slug: parish-and-faith
+  title: Parish and faith
+questions:
+  - id: q019
+    text: What was the inside of your parish church like on a winter morning?
+    hint: The cold, the light, the smell, where your family sat.
+  - id: q020
+    text: Who was the priest when you were a boy, and what was he like?
+    follow_ups:
+      - Was he liked?
+      - Did he ever call to the house?
+  - id: q021
+    text: What do you remember about your First Communion — the clothes, the day, who was there?
+  - id: q022
+    text: What prayers did your mother say, and when did she say them?
+  - id: q023
+    text: Was there a station Mass, a pattern day, or a holy well near you, and what happened there?
+  - id: q024
+    text: What did Sunday actually look like from waking up to going to bed?
+  - id: q025
+    text: Has what you believe changed over your life, and if so, when did it start to shift?
+    hint: There is no wrong answer here, and nobody is marking it.
+  - id: q026
+    text: What did faith give your parents that you could see from the outside?

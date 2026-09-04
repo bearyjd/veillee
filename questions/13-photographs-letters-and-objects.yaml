@@ -1,0 +1,23 @@
+chapter:
+  order: 13
+  slug: photographs-letters-and-objects
+  title: Photographs, letters, and objects
+questions:
+  - id: q105
+    text: What is the oldest photograph you have, and who is in it?
+    hint: You can describe it here; we will scan it another day.
+  - id: q106
+    text: Is there a photograph you wish had been taken that never was?
+  - id: q107
+    text: What object in your house has the longest story attached to it?
+  - id: q108
+    text: Did letters come from Ireland, and who read them out?
+  - id: q109
+    text: What did your mother keep that she would not throw out?
+  - id: q110
+    text: Is there anything of your father's that you still have?
+  - id: q111
+    text: What should we absolutely not throw away when the time comes, and why?
+    hint: This one is genuinely useful to us. Be specific.
+  - id: q112
+    text: If you could keep only one thing you own, what would it be?

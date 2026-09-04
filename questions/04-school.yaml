@@ -1,0 +1,25 @@
+chapter:
+  order: 4
+  slug: school
+  title: School
+questions:
+  - id: q027
+    text: How did you get to school, and how long did it take?
+    follow_ups:
+      - Who did you walk with?
+      - What did you pass on the way?
+  - id: q028
+    text: What was the schoolroom like — the desks, the heat, the smell, the noise?
+  - id: q029
+    text: Name a teacher you have never forgotten, and tell me why.
+  - id: q030
+    text: What were you good at, and did anyone ever notice?
+  - id: q031
+    text: What happened to a child who got something wrong in front of the class?
+  - id: q032
+    text: What did you carry your lunch in, and what was in it?
+  - id: q033
+    text: When did you leave school, and how was that decided?
+    hint: Whether it was your choice or not.
+  - id: q034
+    text: Is there something you wanted to learn then that you never got to?

@@ -1,0 +1,26 @@
+chapter:
+  order: 7
+  slug: food-holidays-and-christmas
+  title: Food, holidays, and Christmas
+questions:
+  - id: q053
+    text: What was on the table on an ordinary weekday when you were a boy?
+  - id: q054
+    text: Talk me through Christmas Eve in your house, hour by hour.
+    hint: What was different about that evening from every other evening.
+  - id: q055
+    text: What was the Christmas dinner, and who cooked it?
+  - id: q056
+    text: What is a food you have not tasted in fifty years that you can still taste?
+  - id: q057
+    text: Was there ever a present you remember opening?
+  - id: q058
+    text: How was a birthday marked, if it was marked at all?
+  - id: q059
+    text: What happened on New Year's Eve, or at Easter, or on St Stephen's Day?
+    follow_ups:
+      - Did the wren boys come?
+  - id: q060
+    text: Who was the best cook in the family, and what was the thing they made?
+  - id: q061
+    text: What did people drink, and what happened when they had drunk it?

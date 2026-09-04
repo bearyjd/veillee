@@ -1,0 +1,27 @@
+chapter:
+  order: 11
+  slug: history-he-lived-through
+  title: History he lived through
+questions:
+  - id: q088
+    text: What is the first news event you remember hearing about, and where were you?
+  - id: q089
+    text: When did electricity come to your house, and what changed the week it did?
+    hint: What you could suddenly do after dark.
+  - id: q090
+    text: When did a television arrive, and what did people do about it?
+    follow_ups:
+      - Who came in to watch it?
+  - id: q091
+    text: Where were you when you heard Kennedy had been shot?
+  - id: q092
+    text: What do you remember about the night of the moon landing?
+  - id: q093
+    text: How close did the Troubles come to you and the people you knew?
+    hint: Say as much or as little as you want.
+  - id: q094
+    text: Who did you know that emigrated, and what happened to them?
+  - id: q095
+    text: What changed in Ireland in your lifetime that you never expected to see?
+  - id: q096
+    text: What was better before, and what is genuinely better now?
