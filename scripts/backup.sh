@@ -4,7 +4,16 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DATA_DIR="${VEILLEE_DATA_DIR:-data}"
-DB_PATH="${VEILLEE_DB_PATH:-$DATA_DIR/veillee.db}"
+
+# The compose deployment keeps the index inside data/; `make run` keeps it in the
+# repository root. Look in both rather than silently backing up neither.
+if [ -n "${VEILLEE_DB_PATH:-}" ]; then
+  DB_PATH="$VEILLEE_DB_PATH"
+elif [ -f "$DATA_DIR/veillee.db" ]; then
+  DB_PATH="$DATA_DIR/veillee.db"
+else
+  DB_PATH="veillee.db"
+fi
 BACKUP_DIR="${VEILLEE_BACKUP_DIR:-backups}"
 STAMP="$(date -u +%Y%m%d-%H%M%S)"
 

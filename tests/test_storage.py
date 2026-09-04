@@ -188,3 +188,11 @@ def test_answered_status_constant_is_the_default(settings: Settings, bank: Quest
     question = bank.by_id("q006")
     assert question is not None
     assert write_answer(settings, question, "Body.").status == STATUS_ANSWERED
+
+
+def test_the_committed_test_fixtures_are_present() -> None:
+    """A missing fixture must fail the build, never silently skip a test."""
+    from tests.conftest import FIXTURES
+
+    for name in ("sample.wav", "sample.m4a", "axe.min.js"):
+        assert (FIXTURES / name).exists(), f"{name} is not committed"

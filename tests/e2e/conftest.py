@@ -51,7 +51,7 @@ def fake_audio_browser(playwright_instance: object) -> Iterator[object]:
     """
     sample = FIXTURES / "sample.wav"
     if not sample.exists():
-        pytest.skip("tests/fixtures/sample.wav is missing")
+        raise AssertionError(f"required test fixture is missing: {sample}")
     instance = playwright_instance.chromium.launch(  # type: ignore[attr-defined]
         headless=True,
         args=[
@@ -71,5 +71,5 @@ def fake_audio_browser(playwright_instance: object) -> Iterator[object]:
 def axe_source() -> str:
     path = FIXTURES / "axe.min.js"
     if not path.exists():
-        pytest.skip("tests/fixtures/axe.min.js is missing")
+        raise AssertionError(f"required test fixture is missing: {path}")
     return path.read_text(encoding="utf-8")

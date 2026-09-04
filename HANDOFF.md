@@ -12,17 +12,28 @@ cd /var/home/user/Documents/vibe-code/veille-webserver
 ./scripts/up.sh
 ```
 
-That builds and starts both containers and prints the URL. Then publish it to
-your tailnet:
+That builds and starts both containers and prints the URL and the port. **Use the
+port it prints.** Something unrelated on this machine already occupies 8000, so
+`up.sh` picks the first free port instead and records it in `.env` so it stays
+the same on every restart. When this was last run it chose **8002**:
+
+```
+Veillee is on http://127.0.0.1:8002
+```
+
+Then publish that port to your tailnet:
 
 ```bash
-tailscale serve --bg 8000
+tailscale serve --bg 8002        # or whatever port up.sh printed
 ```
 
 Open the `https://<machine>.<tailnet>.ts.net` address Tailscale prints. That is
 the address to give him. **Never run `tailscale funnel`** — that publishes to the
 public internet. `serve` keeps it inside your tailnet, which is this app's entire
 security boundary.
+
+It is already running as you read this, with an empty archive and the demo
+under `data/demo/`.
 
 There is no login, no API key, and no setup wizard. He opens the link and writes.
 
@@ -42,14 +53,20 @@ Thirty seconds. It starts the stack if it is down, checks `/healthz`, writes a
 real answer and reads it back, restores the question to how it was, and prints
 `PASS` or the one specific thing that is wrong plus what to do about it.
 
+The probe writes to q120 and puts back whatever was there. The restore runs from
+a shell `trap`, so it happens on the failure paths too — this was tested by
+forcing the failure branch and confirming the original answer came back. And
+whatever happens, the previous version is also in `data/.revisions/q120/`.
+
 The fuller gate, if you have ten minutes and want to be certain:
 
 ```bash
 make verify        # lint, 114 unit/integration tests, 38 browser tests, then the container smoke test
 ```
 
-`make verify` passing is the definition of done, and it passed twice from a
-clean checkout before this was written.
+`make verify` passing is the definition of done. It was run twice in a row from
+a fresh `git clone`, and `./scripts/up.sh`, `make backup` and `make morning-check`
+were each run by hand against the real containers — see BUILD_LOG.md.
 
 ---
 
@@ -93,8 +110,17 @@ a person might have authored. Clear it by hand whenever you like.
 vanishes it reports `degraded` with specific problems and still serves pages, so
 a broken transcode never stops him writing.
 
-**The passcode is off.** `VEILLEE_PASSCODE` in the environment turns it on; the
-cookie then lasts five years so he is never asked twice on a device.
+**The passcode is off.** `VEILLEE_PASSCODE` in `.env` turns it on; the cookie
+then lasts five years so he is never asked twice on a device.
+
+**The port is chosen, not assumed.** 8000 is taken on this host by something
+else, so `up.sh` finds a free port, writes it to `.env`, and reuses it forever
+after so a bookmarked URL keeps working.
+
+**Compose variables live in `.env`, not your shell.** `podman compose` re-runs
+its external Compose provider with a sanitised environment, so exported shell
+variables are silently ignored. Everything that needs to reach a container is
+written to `.env` instead. If you set something by hand, put it there.
 
 ---
 

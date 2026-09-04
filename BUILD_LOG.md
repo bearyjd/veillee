@@ -137,3 +137,41 @@ Session started 2026-09-04T03:30:37Z (UTC). Host: Fedora atomic, 22 cores, no Do
 - Demo content seeded at `data/demo/` — one answer and one recording in all three
   forms, produced by the real pipeline, kept outside `data/answers/` so it never
   mixes with his words or counts toward his progress.
+
+## Review pass — three shipped paths that had never been executed
+
+A review caught that `up.sh`, `backup.sh` and `morning-check.sh` had been
+written, syntax-checked, and never actually run. `make verify` does not cover
+them. Running them found four defects, one of them serious:
+
+- **`morning-check.sh` would have destroyed an answer on its failure path.** The
+  probe overwrites q120 and restores it afterwards — but the read-back-mismatch
+  branch called `problem()`, which exits *before* the restore. The one morning
+  the check failed, it would have left "morning check 06:45:12" as his answer to
+  the last question in the book. That is governing principle #1 being broken by
+  the diagnostic tool, at the worst possible moment. The restore now runs from a
+  shell `trap`, and this was verified by forcing the failure branch and watching
+  the original answer come back (exit code 1, answer intact).
+- **`morning-check.sh` still used the exported-shell-variable mechanism** that
+  had already been proven not to reach Compose. It predated that fix and was not
+  swept. On rootless podman it lands on the right value by accident; on Docker it
+  would have produced root-owned files.
+- **Port 8000 is occupied on this host by an unrelated service.** The smoke test
+  had been moved to 8113, but `up.sh`, the README and HANDOFF all still said
+  8000 — so the very first command in the handover would have failed to bind.
+  `up.sh` now finds a free port, pins it in `.env` so a bookmarked URL keeps
+  working, and prints it. It chose 8002 here.
+- **`up.sh` aborted silently** under `set -e`: `configured_port` returned
+  non-zero when `.env` did not exist yet, killing the script inside a command
+  substitution before it printed anything at all.
+- `backup.sh` looked for the index only under `data/`, missing the
+  repository-root database that `make run` creates.
+- Missing audio fixtures were `pytest.skip`, which would have let the
+  MediaRecorder round-trip and the Path B upload test silently not run inside a
+  green build. They now fail, with a test asserting all three fixtures exist.
+
+All three commands were then run for real against the live containers:
+`./scripts/up.sh` (port 8002, files on the host owned by uid 1000 and readable),
+`make backup` (archive tar plus a consistent sqlite copy, and `/healthz`
+`last_backup` moved from `never` to a timestamp), and `make morning-check`
+(PASS, with the probe restored).

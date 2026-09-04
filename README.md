@@ -15,13 +15,15 @@ years by anyone with a file browser.
 ## Start it
 
 ```bash
-./scripts/up.sh          # builds and starts app + worker, on docker or podman
-tailscale serve --bg 8000
+./scripts/up.sh                    # builds and starts app + worker, on docker or podman
+tailscale serve --bg "$(grep VEILLEE_PORT .env | cut -d= -f2)"
 ```
 
 That is the whole story: no accounts, no API keys, no cloud, no setup wizard.
-`up.sh` works out which container runtime is present and which uid the containers
-must run as so that `data/` ends up owned by you.
+`up.sh` works out which container runtime is present, which uid the containers
+must run as so that `data/` ends up owned by you, and a port that is actually
+free. All of it goes into `.env`, which is where Compose reads variables from —
+it does not inherit them from your shell.
 
 Reading this the morning after a build? Go to **[HANDOFF.md](HANDOFF.md)**.
 
@@ -90,7 +92,7 @@ Everything has a working default and nothing is required.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `VEILLEE_PORT` | `8000` | Host port. Set it in `.env`. |
+| `VEILLEE_PORT` | first free from 8000 | Chosen by `up.sh` and pinned in `.env`. |
 | `VEILLEE_PASSCODE` | *(off)* | Optional single passcode; the cookie then lasts five years. |
 | `VEILLEE_TRANSCRIPTION_BACKEND` | `local` | `local` (faster-whisper) or `remote` (OpenAI-compatible). |
 | `VEILLEE_WHISPER_MODEL` | `small` | Baked into the image at build time. |

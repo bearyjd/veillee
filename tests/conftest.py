@@ -51,17 +51,24 @@ def bank(settings: Settings) -> QuestionBank:
 
 @pytest.fixture
 def sample_wav() -> Path:
-    path = FIXTURES / "sample.wav"
-    if not path.exists():
-        pytest.skip("tests/fixtures/sample.wav is missing")
-    return path
+    return _require_fixture("sample.wav")
 
 
 @pytest.fixture
 def sample_m4a() -> Path:
-    path = FIXTURES / "sample.m4a"
+    return _require_fixture("sample.m4a")
+
+
+def _require_fixture(name: str) -> Path:
+    """Fail rather than skip.
+
+    These fixtures are committed. If one goes missing, skipping would let the
+    MediaRecorder round-trip and the Path B upload test quietly not run inside a
+    green `make verify`, which is worse than a red build.
+    """
+    path = FIXTURES / name
     if not path.exists():
-        pytest.skip("tests/fixtures/sample.m4a is missing")
+        raise AssertionError(f"required test fixture is missing: {path}")
     return path
 
 
