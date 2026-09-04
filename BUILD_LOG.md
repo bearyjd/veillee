@@ -254,3 +254,20 @@ Fixed:
   one that asserts markdown renders live as rich text, and one that blocks the
   bundle request to prove the fallback path.
 - Eleven new toolbar tests, each asserting the markdown that reached the disk.
+
+### Gate re-run after the toolbar
+
+`make verify` twice in a row from a fresh clone of `9c8e224`:
+
+```
+#### RUN 1 ####                       #### RUN 2 ####
+ruff + format + mypy .... clean       ruff + format + mypy .... clean
+pytest -m "not e2e" ..... 116 passed  pytest -m "not e2e" ..... 116 passed
+pytest tests/e2e ........ 53 passed   pytest tests/e2e ........ 53 passed
+scripts/smoke.sh ........ PASSED      scripts/smoke.sh ........ PASSED
+RUN1_EXIT=0                           RUN2_EXIT=0
+```
+
+169 tests, up from 156. The image was rebuilt and the live stack restarted, and
+the toolbar was confirmed on the running containerised site rather than only in
+the test harness.
