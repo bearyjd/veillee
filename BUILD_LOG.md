@@ -194,3 +194,11 @@ Re-read the original requirements line by line against what shipped. Two gaps:
   unexplained.
 
 Everything else in the specification was present and verified.
+
+One more defect found by looking at the running system rather than the tests:
+`podman ps` showed **the worker permanently "unhealthy"** while it was working
+perfectly. It inherited the image's healthcheck, which asks for `/healthz` — a
+URL only the app serves. At 6:45am that reads as a broken system and sends you
+debugging something that is fine. The worker now has its own healthcheck asking
+the only question that matters for it: can it reach the queue it drains.
+Confirmed by recreating the container and watching it report healthy.
