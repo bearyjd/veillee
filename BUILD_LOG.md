@@ -202,3 +202,23 @@ URL only the app serves. At 6:45am that reads as a broken system and sends you
 debugging something that is fine. The worker now has its own healthcheck asking
 the only question that matters for it: can it reach the queue it drains.
 Confirmed by recreating the container and watching it report healthy.
+
+## Phase 9 — the gate
+
+`make verify` run twice in a row from a fresh `git clone` of the committed tree
+(`5ef5a03`), with no `.venv` and no `data/` carried over:
+
+```
+########## RUN 1 ##########          ########## RUN 2 ##########
+ruff check ......... All checks       ruff check ......... All checks
+ruff format ........ 48 formatted     ruff format ........ 48 formatted
+mypy ............... 30 files, ok     mypy ............... 30 files, ok
+pytest -m "not e2e"  116 passed       pytest -m "not e2e"  116 passed
+pytest tests/e2e ... 40 passed        pytest tests/e2e ... 40 passed
+scripts/smoke.sh ... SMOKE PASSED     scripts/smoke.sh ... SMOKE PASSED
+RUN1_EXIT=0                           RUN2_EXIT=0
+```
+
+Both green. 156 tests, plus 18 smoke checks against real containers built from
+an empty archive. Stopping here, as instructed: no refactoring, no polish, no
+phase-two work.
