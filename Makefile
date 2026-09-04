@@ -9,7 +9,7 @@ COMPOSE := $(shell if command -v docker >/dev/null 2>&1 && docker info >/dev/nul
 	then echo "docker compose"; else echo "podman compose"; fi)
 
 .PHONY: help install lint fmt typecheck test e2e verify verify-fast smoke \
-        morning-check backup reindex export run worker clean browsers
+        morning-check backup reindex export run worker clean browsers up down logs
 
 help: ## Show this help
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -58,6 +58,15 @@ reindex: ## Rebuild the SQLite index from data/ alone
 
 export: ## Write a dated export folder
 	$(RUN) veillee export
+
+up: ## Build and start the containers (docker or podman, whichever is here)
+	./scripts/up.sh
+
+down: ## Stop the containers
+	./scripts/down.sh
+
+logs: ## Follow the container logs
+	$(COMPOSE) logs -f --tail 100
 
 run: ## Development server on 127.0.0.1:8000
 	$(RUN) veillee serve --reload

@@ -106,3 +106,34 @@ Session started 2026-09-04T03:30:37Z (UTC). Host: Fedora atomic, 22 cores, no Do
   disk as FLAC and that chunks are already durable on the server *while the
   recording is still running*.
 - Totals at this point: 114 unit and integration tests, 38 browser tests.
+
+## Phases 8 and 9 — containers, backup, smoke, demo
+
+- One image, two roles. The whisper `small` model is baked in at build time
+  (`model small baked in` in the build log), so the first recording of the
+  morning does not wait on a 500 MB download.
+- **Two container bugs found by running the smoke test, both of which would have
+  been silent in production:**
+  - **Compose does not inherit shell environment variables here.** `podman
+    compose` re-executes its external provider with a sanitised environment, so
+    `export VEILLEE_RUN_AS=…` was being dropped and the container would have run
+    as the wrong uid — producing an archive owned by a subuid that the host user
+    cannot open in a file browser, which is the exact failure the whole
+    plain-markdown design exists to prevent. Confirmed by comparing `compose
+    config` output with and without a `.env` file. Both `up.sh` and `smoke.sh`
+    now write `.env` in the project directory, which is the portable
+    Compose-spec mechanism and behaves identically under docker.
+  - A generated compose file resolves `context: .` against its own directory,
+    not the repository, so the smoke test could not build. Now absolute.
+- Port 8000 is already occupied on this host by an unrelated service, so the
+  smoke test uses 8113 and `HANDOFF.md` notes it.
+- **Gate: `scripts/smoke.sh` green from a completely empty archive.** Eighteen
+  checks: the stack builds and starts, `/healthz` is ok, an answer written over
+  HTTP appears on the host as a file *readable by the host user* (the uid check),
+  a real `.m4a` upload produces original/FLAC/Opus/sidecar and plays back, the
+  worker genuinely transcribes it and marks the draft unreviewed, export writes
+  the book, the offline site and a verifying manifest, and finally the database
+  is deleted inside the container and rebuilt from `data/` alone.
+- Demo content seeded at `data/demo/` — one answer and one recording in all three
+  forms, produced by the real pipeline, kept outside `data/answers/` so it never
+  mixes with his words or counts toward his progress.

@@ -1,0 +1,44 @@
+# Reach this through `tailscale serve`. NEVER `tailscale funnel`.
+#
+# The app is published on 127.0.0.1 only. VEILLEE_RUN_AS decides which uid the
+# containers run as, because rootless podman and rootful docker map uids
+# differently; scripts/up.sh works it out and exports it for you.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: veillee:latest
+    command: ["veillee", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    user: "${VEILLEE_RUN_AS:-0}"
+    ports:
+      - "127.0.0.1:${VEILLEE_PORT:-8000}:8000"
+    volumes:
+      - ./data:/data:z
+    environment:
+      VEILLEE_DATA_DIR: /data
+      VEILLEE_DB_PATH: /data/veillee.db
+      VEILLEE_PASSCODE: "${VEILLEE_PASSCODE:-}"
+      VEILLEE_SECRET_KEY: "${VEILLEE_SECRET_KEY:-veillee-local-tailnet-only}"
+      VEILLEE_GIT_AUTOCOMMIT: "${VEILLEE_GIT_AUTOCOMMIT:-1}"
+    restart: unless-stopped
+
+  worker:
+    image: veillee:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["veillee", "worker"]
+    user: "${VEILLEE_RUN_AS:-0}"
+    depends_on:
+      - app
+    volumes:
+      - ./data:/data:z
+    environment:
+      VEILLEE_DATA_DIR: /data
+      VEILLEE_DB_PATH: /data/veillee.db
+      VEILLEE_TRANSCRIPTION_BACKEND: "${VEILLEE_TRANSCRIPTION_BACKEND:-local}"
+      VEILLEE_WHISPER_MODEL: "${VEILLEE_WHISPER_MODEL:-small}"
+      VEILLEE_GIT_AUTOCOMMIT: "${VEILLEE_GIT_AUTOCOMMIT:-1}"
+    restart: unless-stopped
