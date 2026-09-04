@@ -47,3 +47,30 @@ Session started 2026-09-04T03:30:37Z (UTC). Host: Fedora atomic, 22 cores, no Do
   tone and re-probing the codec and duration of both outputs.
 - **Gate: reindex test green** — five answers written, database deleted from
   disk, rebuilt from `data/` alone, rows compared and identical.
+
+## Phases 2, 4, 5, 7 — site, both audio paths, export
+
+- Pages, templates, and stylesheet written. 20px body text, 56px minimum touch
+  targets, no sidebar, everything one click from home. Skip and Come back to
+  this are the same size and weight as Next question.
+- **Bug found by running the server, not by reading the code.** The first real
+  autosave request returned 500 while *still writing the file correctly*:
+  FastAPI resolves a sync dependency on a worker thread but ran the async
+  handler on the event loop thread, so the SQLite connection crossed threads and
+  raised `ProgrammingError`. Fixed with `check_same_thread=False`, which is
+  correct here because a connection is per-request and never used concurrently.
+  This would have been the failure at 7am, and no amount of re-reading the code
+  would have surfaced it.
+- Two smaller fixes from the same discipline: FastAPI could not build a response
+  model from the `HTMLResponse | RedirectResponse` union on `/enter`, and the
+  `.part` temp-file suffix broke ffmpeg's container detection.
+- Verified over real HTTP against a running server: autosave, second save
+  creating a revision, `data/` git auto-commit, skip redirect, adding his own
+  question, Path B upload of a real `.m4a`, chunked Path A upload assembled from
+  three parts, playback of both opus and flac, delete refusing without the typed
+  word and moving files to `.trash/` when given it.
+- Reindex re-verified with audio present: index deleted, rebuilt from disk
+  alone, recovered 2 answers and 1 recording, and re-queued the recording that
+  had no transcript on disk.
+- Export produces the markdown book, the self-contained HTML site with playable
+  audio, a copy of the archive, and a manifest that verifies its own checksums.

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Good to see you.</h1>
+
+{% if progress.answered %}
+  <p class="lede">
+    You've answered {{ progress.answered }} question{{ '' if progress.answered == 1 else 's' }}{% if progress.words %},
+    and written {{ "{:,}".format(progress.words) }} words{% endif %}{% if progress.recordings %},
+    with {{ progress.recordings }} recording{{ '' if progress.recordings == 1 else 's' }}{% endif %}.
+    There is no hurry.
+  </p>
+{% else %}
+  <p class="lede">
+    There are {{ progress.total }} questions here. You can answer them in any
+    order, take as long as you like, and stop whenever you want. Nothing is lost
+    if you close this.
+  </p>
+{% endif %}
+
+{% if resume %}
+<a class="card" href="/question/{{ resume.id }}">
+  <p class="card-note">{{ resume_reason }}</p>
+  <h2>{{ resume.text }}</h2>
+  <p class="card-note">{{ resume.chapter_title }}</p>
+</a>
+{% endif %}
+
+{% if random_question %}
+<a class="card" href="/question/{{ random_question.id }}">
+  <p class="card-note">Or something different</p>
+  <h2>{{ random_question.text }}</h2>
+  <p class="card-note">{{ random_question.chapter_title }}</p>
+</a>
+{% endif %}
+
+<div class="button-row">
+  <a class="button secondary" href="/chapters">Browse by chapter</a>
+  <a class="button secondary" href="/answers">Everything you've answered</a>
+</div>
+
+<h2>Ask your own question</h2>
+<p>If there is something you want to talk about that nobody thought to ask, put it here.</p>
+<form method="post" action="/questions/new" class="stack">
+  <label for="own-question">Your question</label>
+  <input type="text" id="own-question" name="text" maxlength="500" required
+         placeholder="Something you want to say more about">
+  <div class="button-row">
+    <button class="button secondary" type="submit">Add it</button>
+  </div>
+</form>
+
+{% endblock %}

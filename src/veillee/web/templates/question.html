@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ question.text[:60] }} — {{ site_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/vendor/editor.css">{% endblock %}
+
+{% block content %}
+
+<p class="chapter-label">{{ question.chapter_title }}</p>
+<h1 class="question-text">{{ question.text }}</h1>
+{% if question.hint %}<p class="hint">{{ question.hint }}</p>{% endif %}
+
+<!-- The editor. If the bundle fails to load, the textarea below takes over and
+     autosave keeps working exactly the same way. -->
+<div id="editor-frame" class="editor-frame"
+     data-question-id="{{ question.id }}"
+     aria-label="Your answer"></div>
+
+<textarea id="editor-fallback" class="editor-fallback" hidden
+          aria-label="Your answer">{{ answer.body if answer else '' }}</textarea>
+
+<script id="initial-markdown" type="application/json">{{ (answer.body if answer else '') | tojson }}</script>
+
+<p class="save-state" id="save-state" role="status" aria-live="polite"
+   data-state="{{ 'saved' if answer and answer.body else 'empty' }}">
+  {%- if answer and answer.updated and answer.body -%}
+    Saved {{ answer.updated | friendly_time }}
+  {%- endif -%}
+</p>
+
+<div class="button-row">
+  {% if next_question %}
+  <a class="button" href="/question/{{ next_question.id }}">Next question</a>
+  {% else %}
+  <a class="button" href="/">Back to the start</a>
+  {% endif %}
+
+  <form method="post" action="/question/{{ question.id }}/skip">
+    <button class="button secondary" type="submit">Skip for now</button>
+  </form>
+
+  <form method="post" action="/question/{{ question.id }}/later">
+    <button class="button secondary" type="submit">Come back to this</button>
+  </form>
+</div>
+
+{% if question.follow_ups %}
+<h2>If you want to say more</h2>
+<ul>{% for follow_up in question.follow_ups %}<li>{{ follow_up }}</li>{% endfor %}</ul>
+{% endif %}
+
+<!-- ---- Audio. Two paths, both real. ------------------------------------ -->
+
+<section class="recorder" x-data="veilleeRecorder('{{ question.id }}')" aria-labelledby="recording-heading">
+  <h2 id="recording-heading" style="margin-top:0">Say it out loud instead</h2>
+  <p>You can talk instead of typing. Press the button, say whatever you want, and press it again when you're done.</p>
+
+  <template x-if="supported">
+    <div>
+      <button type="button" class="record-button" id="record-button"
+              :data-recording="recording"
+              @click="toggle()"
+              :aria-label="recording ? 'Stop recording' : 'Start recording'">
+        <span class="dot" aria-hidden="true"></span>
+        <span x-text="recording ? 'Stop recording' : 'Start recording'">Start recording</span>
+      </button>
+
+      <div class="level-meter" role="presentation" x-show="recording">
+        <div class="level-fill" :style="`width: ${level}%`"></div>
+      </div>
+      <p class="elapsed" x-show="recording || elapsed > 0">
+        <span x-text="clock"></span>
+        <span x-show="recording"> — recording, and saving as you go</span>
+      </p>
+    </div>
+  </template>
+
+  <template x-if="!supported">
+    <p class="notice">
+      This browser won't let the page record directly. Use the upload below —
+      record on your phone with Voice Memos and send it here. It works just as well.
+    </p>
+  </template>
+
+  <p class="notice problem" role="alert" x-show="error" x-text="error" x-cloak></p>
+  <p class="notice good" role="status" x-show="done" x-cloak>Saved. Thank you.</p>
+
+  <!-- Path B. Not a fallback in the user's eyes: an equally good way in. -->
+  <div class="upload-fallback">
+    <form id="upload-form" method="post" action="/api/upload/{{ question.id }}"
+          enctype="multipart/form-data" @submit.prevent="uploadFile($event)">
+      <label for="audio-file">Or upload a recording from your phone</label>
+      <input type="file" id="audio-file" name="file"
+             accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg" capture>
+      <div class="button-row">
+        <button class="button secondary" type="submit" x-text="uploading ? 'Sending…' : 'Send this recording'">
+          Send this recording
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {% if recordings %}
+  <h3>What you've recorded for this question</h3>
+  {% for recording in recordings %}
+  <div class="recording-item" data-recording-id="{{ recording.recording_id }}">
+    <audio controls preload="none" src="/audio/{{ recording.recording_id }}.opus"
+           aria-label="Recording from {{ recording.created | friendly_date }}"></audio>
+    <span class="card-note">
+      {{ recording.duration_seconds | friendly_duration }} · {{ recording.created | friendly_date }}
+    </span>
+    <button type="button" class="button quiet delete-recording"
+            @click="confirmDelete('{{ recording.recording_id }}')">Remove this</button>
+  </div>
+  {% endfor %}
+  {% endif %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/editor.js"></script>
+<script src="/static/js/editor-boot.js"></script>
+<script src="/static/js/recorder.js"></script>
+{% endblock %}

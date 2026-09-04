@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}{{ site_name }}{% endblock %}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/veillee.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to the main part of the page</a>
+<div class="shell">
+  <header class="masthead">
+    <a class="wordmark" href="/">{{ site_name }}</a>
+    <nav aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/chapters">Chapters</a>
+      <a href="/answers">Everything so far</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-foot">
+    <p>Your words are kept as plain files on this machine. Nothing is sent anywhere.</p>
+  </footer>
+</div>
+<script src="/static/vendor/htmx.min.js" defer></script>
+<script src="/static/vendor/alpine.min.js" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

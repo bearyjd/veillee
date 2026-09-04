@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Chapters — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Chapters</h1>
+<p class="lede">Fourteen parts of a life. Start anywhere.</p>
+
+{% for chapter in chapters %}
+<a class="card" href="/chapter/{{ chapter.slug }}">
+  <h2>{{ chapter.title }}</h2>
+  <p class="card-note">
+    {{ chapter.total }} question{{ '' if chapter.total == 1 else 's' }}{% if chapter.answered %} · you've answered {{ chapter.answered }}{% endif %}
+  </p>
+</a>
+{% endfor %}
+{% endblock %}

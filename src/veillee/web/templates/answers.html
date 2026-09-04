@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Everything so far — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Everything so far</h1>
+
+{% if answers %}
+<p class="lede">
+  You've answered {{ progress.answered }} question{{ '' if progress.answered == 1 else 's' }}.
+  Every one of them is saved as a file on this machine.
+</p>
+{% for answer in answers %}
+<article class="card">
+  <h2>{{ answer.question_text }}</h2>
+  <p class="card-note">{{ answer.word_count }} words · last written {{ answer.updated | friendly_date }}</p>
+  <p class="answer-preview">{{ answer.body[:400] }}{% if answer.body|length > 400 %}…{% endif %}</p>
+  <p><a href="/question/{{ answer.question_id }}">Open this one</a></p>
+</article>
+{% endfor %}
+{% else %}
+<p class="lede">Nothing here yet. That is exactly where everybody starts.</p>
+<div class="button-row"><a class="button" href="/random">Try a question</a></div>
+{% endif %}
+{% endblock %}

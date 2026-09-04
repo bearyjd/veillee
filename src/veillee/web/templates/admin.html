@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Admin — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Recordings and transcripts</h1>
+<p class="notice">
+  This page is for you, not for him. Transcripts are machine drafts and are never
+  shown on his side of the site.
+</p>
+
+<p class="count">
+  Queue: {{ queue.pending }} waiting, {{ queue.running }} running,
+  {{ queue.done }} done{% if queue.dead %}, <strong>{{ queue.dead }} gave up</strong>{% endif %}.
+</p>
+
+{% if rows %}
+<table>
+  <caption class="card-note" style="text-align:left;padding-bottom:.5rem">
+    Every recording on disk, newest first
+  </caption>
+  <thead>
+    <tr><th scope="col">Question</th><th scope="col">Recorded</th><th scope="col">Length</th><th scope="col">Transcript</th><th scope="col">Actions</th></tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td>{% if row.question %}{{ row.question.text }}{% else %}<em>{{ row.recording.question_id }}</em>{% endif %}</td>
+      <td>{{ row.recording.created | friendly_date }}</td>
+      <td>{{ row.recording.duration_seconds | friendly_duration }}</td>
+      <td>
+        {% if not row.has_transcript %}<span class="tag">waiting</span>
+        {% elif row.reviewed %}<span class="tag done">reviewed</span>
+        {% else %}<span class="tag unreviewed">not yet reviewed</span>{% endif %}
+      </td>
+      <td>
+        {% if row.has_transcript %}<a href="/admin/transcript/{{ row.recording.recording_id }}">Open</a>{% endif %}
+        <form method="post" action="/admin/requeue/{{ row.recording.recording_id }}" style="display:inline">
+          <button class="button quiet" type="submit">Transcribe again</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="lede">No recordings yet.</p>
+{% endif %}
+{% endblock %}

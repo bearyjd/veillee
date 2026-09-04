@@ -70,9 +70,18 @@ CREATE TABLE IF NOT EXISTS meta (
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
-    """Open the index in WAL mode with sane durability settings."""
+    """Open the index in WAL mode with sane durability settings.
+
+    `check_same_thread=False` is required and safe here. FastAPI resolves a sync
+    dependency on a worker thread but may run the handler on the event loop
+    thread, so one connection legitimately crosses threads within a single
+    request. It is never shared *between* requests and never used concurrently:
+    each request opens its own connection and closes it on the way out.
+    """
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db_path, timeout=30.0, isolation_level=None)
+    connection = sqlite3.connect(
+        db_path, timeout=30.0, isolation_level=None, check_same_thread=False
+    )
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA journal_mode=WAL")
     connection.execute("PRAGMA synchronous=NORMAL")

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ chapter.title }} — {{ site_name }}{% endblock %}
+{% block content %}
+<p class="chapter-label">Chapter {{ chapter.order }}</p>
+<h1>{{ chapter.title }}</h1>
+
+<div class="stack">
+{% for question in questions %}
+  {% set answer = answers.get(question.id) %}
+  <a class="card" href="/question/{{ question.id }}">
+    <h3>{{ question.text }}</h3>
+    {% if question.id in answered %}
+      <p class="card-note">Answered{% if answer and answer.word_count %} · {{ answer.word_count }} words{% endif %}</p>
+      {% if answer and answer.body %}<p class="answer-preview">{{ answer.body[:180] }}{% if answer.body|length > 180 %}…{% endif %}</p>{% endif %}
+    {% elif answer and answer.status == 'later' %}
+      <p class="card-note">You said you'd come back to this</p>
+    {% elif answer and answer.status == 'skipped' %}
+      <p class="card-note">Skipped for now</p>
+    {% else %}
+      <p class="card-note">Not answered yet</p>
+    {% endif %}
+  </a>
+{% endfor %}
+</div>
+
+<div class="button-row"><a class="button secondary" href="/chapters">All chapters</a></div>
+{% endblock %}

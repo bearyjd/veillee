@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Transcript — {{ site_name }}{% endblock %}
+{% block content %}
+<p class="chapter-label">Transcript</p>
+<h1>{{ recording.question_id if recording else recording_id }}</h1>
+
+{% if not metadata.get('reviewed') %}
+<p class="notice problem" role="status">
+  Not yet reviewed. This is what the machine heard, mistakes and all.
+</p>
+{% endif %}
+
+<p class="card-note">
+  Recorded {{ metadata.get('created', '') | friendly_date }} ·
+  model {{ metadata.get('model', 'unknown') }} ·
+  backend {{ metadata.get('backend', 'unknown') }}
+</p>
+
+{% if recording %}
+<audio controls preload="none" src="/audio/{{ recording.recording_id }}.opus"
+       aria-label="The recording this transcript came from" style="width:100%;margin:1rem 0"></audio>
+{% endif %}
+
+<form method="post" action="/admin/transcript/{{ recording_id }}" class="stack">
+  <label for="transcript-body">The transcript</label>
+  <textarea id="transcript-body" name="body" class="editor-fallback" rows="24">{{ body }}</textarea>
+  <p>
+    <label for="reviewed-flag">
+      <input type="checkbox" id="reviewed-flag" name="reviewed" value="yes"
+             {% if metadata.get('reviewed') %}checked{% endif %}>
+      I have read this through and corrected it
+    </label>
+  </p>
+  <div class="button-row">
+    <button class="button" type="submit">Save</button>
+    <a class="button secondary" href="/admin">Back</a>
+  </div>
+</form>
+
+{% if metadata.get('history') %}
+<h2>History</h2>
+<ul>
+  {% for entry in metadata.get('history') %}
+  <li>{{ entry.get('kind') }} — {{ entry.get('saved', '') | friendly_date }}{% if entry.get('file') %} ({{ entry.file }}){% endif %}</li>
+  {% endfor %}
+</ul>
+<p class="card-note">The machine's original wording is kept on disk and is never overwritten.</p>
+{% endif %}
+{% endblock %}
