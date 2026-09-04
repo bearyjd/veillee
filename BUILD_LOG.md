@@ -340,3 +340,22 @@ respected), and by treating a missing answers directory as zero rather than an
 error. Two regression tests: one runs morning-check against a checkout with no
 `data/` at all, the other asserts that sourcing `runtime.sh` cannot switch on
 errexit behind its caller's back.
+
+### Gate, after the nine gaps were closed
+
+`make verify` twice in a row from a fresh clone of `3e5485d`, confirmed to have
+no `data/` directory:
+
+```
+#### RUN 1 ####                       #### RUN 2 ####
+ruff + format + mypy .... clean       ruff + format + mypy .... clean
+pytest -m "not e2e" ..... 189 passed  pytest -m "not e2e" ..... 189 passed
+pytest tests/e2e ........ 59 passed   pytest tests/e2e ........ 59 passed
+scripts/smoke.sh ........ PASSED      scripts/smoke.sh ........ PASSED
+RUN1_EXIT=0                           RUN2_EXIT=0
+```
+
+248 tests, up from 156 at the original gate. Four defects were found by writing
+the tests for claims that had been made without them, and a fifth - the sourced
+library forcing errexit - by running from a clean checkout rather than a working
+tree.
