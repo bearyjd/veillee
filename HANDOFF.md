@@ -150,11 +150,28 @@ gated. For completeness, the things deliberately left out:
   named as phase two. Seams are clean and nothing is stubbed — there is no
   placeholder UI, no handler returning fake data, and no commented-out test.
 - No accounts, analytics, telemetry, or public deployment, by design.
-- The remote transcription backend is implemented and unit-tested but has never
-  been run against a live endpoint, because that would have needed an API key.
+- The remote transcription backend is implemented but **has no test of any kind**
+  and has never been run against a live endpoint. Treat it as unverified code.
   Local is the default and is what the smoke test exercises.
 - `data/` auto-commits but never pushes. Setting up a remote is a decision about
   where his private words travel, and it is yours to make.
+
+### What is claimed here but not covered by a test
+
+Read this list as the honest edge of the suite. Everything in it works as far as
+I could tell by hand, but `make verify` would stay green if it broke.
+
+| Claim | Status |
+|---|---|
+| `data/` auto-commits on save | **No test.** Both fixtures set `VEILLEE_GIT_AUTOCOMMIT=0`, so no test ever exercises it. Verified by hand over HTTP; `git -C data log` showed the commits. |
+| `data/` is never auto-pushed | **No test.** True by inspection — no push call exists anywhere in the code. |
+| The passcode flow | **No test** beyond an accessibility scan of `/enter`. Nothing checks that a wrong passcode is rejected, that a right one sets the cookie, or that the cookie persists. It is off by default. |
+| Transcripts are never shown to him | **No test.** Enforced by the routes, but nothing asserts a transcript's words are absent from his pages. |
+| The machine transcript is preserved when you edit it | **No test.** The code writes a `.machine.md` beside it and a history entry; nothing verifies it happens. |
+| The worker loop itself | **No unit test.** The queue primitives are tested and the smoke test proves a real transcript appears end to end, but `Worker.run_once` and its failure handling are not directly tested. |
+| Autosave on blur | **No test.** The five-second interval and the beacon on navigation are both tested; the blur handler specifically is not. |
+| `up.sh`, `backup.sh`, `morning-check.sh` | **No automated coverage.** `make verify` does not touch them. Each was run by hand against the live containers, and the morning-check failure path was tested by forcing it. |
+| The app binds 127.0.0.1 only | **No test.** It is the default in `cli.py` and compose publishes to `127.0.0.1:`. Check it with `ss -ltn`. |
 
 ---
 

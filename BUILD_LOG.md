@@ -271,3 +271,18 @@ RUN1_EXIT=0                           RUN2_EXIT=0
 169 tests, up from 156. The image was rebuilt and the live stack restarted, and
 the toolbar was confirmed on the running containerised site rather than only in
 the test harness.
+
+## Audit: claims versus tests
+
+Asked directly what else had been claimed but not tested. Audited the suite
+rather than answering from memory, and found nine gaps. One was a false
+statement in a shipped document: HANDOFF said the remote transcription backend
+was "unit-tested" when it has no test at all. Corrected.
+
+The largest gap is that **`data/` git auto-commit is exercised by no test
+whatsoever** - both fixtures set `VEILLEE_GIT_AUTOCOMMIT=0` so tests do not
+touch git. Auto-commit backs a "nothing is ever lost" promise, and it was
+verified only by hand.
+
+All nine are now listed in HANDOFF.md under "What is claimed here but not covered
+by a test", so the edge of the suite is written down rather than implied.
