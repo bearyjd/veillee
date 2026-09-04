@@ -11,7 +11,7 @@ questions:
     text: Describe the walk from your door to the nearest shop.
     hint: What you passed, who you would meet, how long it took.
   - id: q065
-    text: Was there someone in the townland everyone had a story about?
+    text: Who in the townland did everyone have a story about?
   - id: q066
     text: Where did people gather when they had nothing in particular to do?
   - id: q067

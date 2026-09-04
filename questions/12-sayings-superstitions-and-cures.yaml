@@ -11,7 +11,7 @@ questions:
   - id: q099
     text: What were you told never to do, and what was supposed to happen if you did?
   - id: q100
-    text: Was there a cure in your family — for a burn, a sprain, a bad chest?
+    text: What cures were used in your family — for a burn, a sprain, a bad chest?
     follow_ups:
       - Who had the cure, and how did they get it?
   - id: q101

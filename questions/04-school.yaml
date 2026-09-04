@@ -22,4 +22,4 @@ questions:
     text: When did you leave school, and how was that decided?
     hint: Whether it was your choice or not.
   - id: q034
-    text: Is there something you wanted to learn then that you never got to?
+    text: What did you want to learn back then that you never got to?

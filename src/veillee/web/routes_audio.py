@@ -258,7 +258,8 @@ async def delete_recording(
 
     repository.delete_recording_row(connection, recording_id)
     autocommit(
-        settings.data_dir, f"recording: {recording_id} moved to trash",
+        settings.data_dir,
+        f"recording: {recording_id} moved to trash",
         enabled=settings.git_autocommit,
     )
     return JSONResponse({"deleted": recording_id, "moved_to_trash": moved})

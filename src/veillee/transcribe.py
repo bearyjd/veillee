@@ -150,8 +150,9 @@ def transcribe(settings: Settings, audio_path: Path) -> Transcription:
     return transcribe_local(settings, audio_path)
 
 
-def render_markdown(transcription: Transcription, *, recording_id: str, question_id: str,
-                    created: str) -> str:
+def render_markdown(
+    transcription: Transcription, *, recording_id: str, question_id: str, created: str
+) -> str:
     """The transcript as it is stored: frontmatter, then timestamped segments."""
     metadata = {
         "recording_id": recording_id,

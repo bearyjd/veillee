@@ -162,6 +162,9 @@ def reindex(settings: Settings) -> ReindexReport:
     )
     logger.info(
         "reindex complete: %d answers, %d recordings, %d queued, %d problems",
-        report.answers, report.recordings, report.queued, len(report.problems),
+        report.answers,
+        report.recordings,
+        report.queued,
+        len(report.problems),
     )
     return report

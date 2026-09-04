@@ -58,7 +58,10 @@ class Worker:
             state = queue_module.fail(connection, job, str(exc), self.settings.max_attempts)
             logger.error(
                 "transcription of %s failed (attempt %d, now %s): %s",
-                job.recording_id, job.attempts + 1, state, exc,
+                job.recording_id,
+                job.attempts + 1,
+                state,
+                exc,
             )
         return True
 
@@ -118,7 +121,8 @@ def main() -> int:
     signal.signal(signal.SIGINT, worker.request_stop)
     logger.info(
         "worker starting: backend=%s model=%s",
-        settings.transcription_backend, settings.whisper_model,
+        settings.transcription_backend,
+        settings.whisper_model,
     )
     worker.run()
     return 0

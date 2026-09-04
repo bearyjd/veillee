@@ -7,6 +7,9 @@ export async function mount(root, initialMarkdown, onChange) {
   const crepe = new Crepe({
     root,
     defaultValue: initialMarkdown || "",
+    featureConfigs: {
+      [Crepe.Feature.Placeholder]: { text: "Start wherever you like.", mode: "block" },
+    },
     features: {
       [Crepe.Feature.ImageBlock]: false,
       [Crepe.Feature.BlockEdit]: false,

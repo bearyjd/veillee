@@ -16,7 +16,7 @@ questions:
   - id: q118
     text: What do you know now that would have been worth knowing at twenty-five?
   - id: q119
-    text: Is there anything you have never told us that you would like written down?
+    text: What have you never told us that you would like written down?
     hint: Only if you want to. Nobody will read this before you say so.
   - id: q120
     text: What would you like said about you?

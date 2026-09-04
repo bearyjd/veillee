@@ -144,6 +144,10 @@ p { margin: 0 0 1.25rem; max-width: var(--measure); }
   font-family: var(--sans);
   font-size: 1.05rem;
   font-weight: 500;
+  /* Explicit, so an <a class="button"> and a <button class="button"> come out
+     exactly the same height. Skip and Come back to this must not read as the
+     lesser choice next to Next question. */
+  line-height: 1.2;
   border-radius: var(--radius);
   border: 2px solid var(--accent);
   background: var(--accent);
@@ -152,6 +156,9 @@ p { margin: 0 0 1.25rem; max-width: var(--measure); }
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
 }
+
+/* A form wrapping a button must not add height of its own. */
+.button-row form { margin: 0; display: flex; }
 .button:hover, .button:focus { background: var(--accent-strong); border-color: var(--accent-strong); }
 
 /* "Skip" and "Come back to this" are the same size and weight as "Next".

@@ -42,8 +42,14 @@ def probe_duration(path: Path) -> float:
     """Duration in seconds. Returns 0.0 when the container does not declare one."""
     result = _run(
         [
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
-            "-of", "json", str(path),
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "json",
+            str(path),
         ]
     )
     if result.returncode != 0:
@@ -71,8 +77,17 @@ def _transcode(
     # extension; state it explicitly rather than letting it guess.
     result = _run(
         [
-            "ffmpeg", "-y", "-v", "error", "-i", str(source), "-vn",
-            *codec_args, "-f", container, str(temporary),
+            "ffmpeg",
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            str(source),
+            "-vn",
+            *codec_args,
+            "-f",
+            container,
+            str(temporary),
         ]
     )
     if result.returncode != 0 or not temporary.exists() or temporary.stat().st_size == 0:
@@ -110,8 +125,16 @@ def probe_codec(path: Path) -> str:
     """Codec name of the first audio stream, or '' when it cannot be determined."""
     result = _run(
         [
-            "ffprobe", "-v", "error", "-select_streams", "a:0",
-            "-show_entries", "stream=codec_name", "-of", "json", str(path),
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "json",
+            str(path),
         ]
     )
     if result.returncode != 0:

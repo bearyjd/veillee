@@ -38,7 +38,9 @@ def _startup(app: FastAPI, settings: Settings) -> None:
         logger.error("reindex problem: %s", problem)
     logger.info(
         "veillee ready: %d questions, %d answers, %d recordings",
-        len(bank.questions), report.answers, report.recordings,
+        len(bank.questions),
+        report.answers,
+        report.recordings,
     )
 
 

@@ -103,6 +103,16 @@
     }
   }
 
+  /* Milkdown renders a role="textbox" contenteditable of its own. It needs an
+     accessible name, and the wrapper div cannot legally carry one. */
+  function nameTheEditor() {
+    var box = frame.querySelector('[contenteditable="true"]');
+    if (box) {
+      box.setAttribute("aria-label", "Your answer");
+      box.setAttribute("aria-multiline", "true");
+    }
+  }
+
   function useFallbackEditor(why) {
     frame.hidden = true;
     fallback.hidden = false;
@@ -144,6 +154,7 @@
     window.VeilleeEditor.mount(frame, initial, markDirty)
       .then(function (instance) {
         editor = instance;
+        nameTheEditor();
         start();
       })
       .catch(function (err) {

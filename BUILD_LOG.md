@@ -74,3 +74,35 @@ Session started 2026-09-04T03:30:37Z (UTC). Host: Fedora atomic, 22 cores, no Do
   had no transcript on disk.
 - Export produces the markdown book, the self-contained HTML site with playable
   audio, a copy of the archive, and a manifest that verifies its own checksums.
+
+## Phases 3, 6 and the test suite
+
+- **Crash-recovery test green**, and it is a real crash: the test types, waits
+  past one autosave interval, then kills the renderer outright with
+  `chrome://crash` so no unload handler, beacon, or flush can run. A fresh
+  browser context then finds the words both in the page and in the markdown file
+  on disk. Eight tests cover it, including typing and clicking Next immediately.
+- **The Milkdown Crepe editor is what shipped.** A test asserts which editor is
+  live and that exactly one of the two is in use, so the handover states a fact
+  rather than an assumption.
+- Three real defects found by tests rather than by reading:
+  - **`make test` would have run nothing.** `pytest_collection_modifyitems` is a
+    global hook, so the conftest in `tests/e2e/` was marking the *entire* suite
+    as e2e and `-m "not e2e"` silently deselected all 152 tests. Now filtered by
+    path. This is the kind of failure that makes a green suite meaningless.
+  - **Fourteen questions opened as yes/no** ("Was there…", "Is there…"), against
+    the explicit "never yes/no" requirement. A content guard test caught them;
+    all fourteen were rewritten open, and the guard now protects the bank.
+  - **Two serious accessibility violations on the question page** — the Milkdown
+    `role="textbox"` had no accessible name and the wrapper div carried an
+    `aria-label` it is not permitted to have. Both fixed; axe-core now reports
+    zero critical *and* zero serious violations on every page template.
+- One design fix from a test: "Next question" rendered 3.7px taller than "Skip
+  for now" because an anchor and a button inherit different line heights. Skip
+  and Come back to this are required to be equal in weight, so `.button` now
+  sets line-height explicitly and the test asserts the heights match.
+- MediaRecorder is tested with a real fake microphone
+  (`--use-file-for-fake-audio-capture`), asserting both that a recording reaches
+  disk as FLAC and that chunks are already durable on the server *while the
+  recording is still running*.
+- Totals at this point: 114 unit and integration tests, 38 browser tests.

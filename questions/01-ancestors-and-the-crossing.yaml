@@ -21,7 +21,7 @@ questions:
     text: What did you hear about the crossing itself — the ship, the money, who saw them off?
     hint: Even a single detail somebody repeated at a table counts.
   - id: q005
-    text: Was there anyone left behind, and did the family ever speak of them again?
+    text: Who was left behind when they went, and how were they spoken about afterwards?
   - id: q006
     text: What did your grandparents look like, and how did they sound when they talked?
     follow_ups:
@@ -29,7 +29,7 @@ questions:
   - id: q007
     text: What work did your grandparents do, and did anyone in the family follow them into it?
   - id: q008
-    text: Is there a story about our family that got told over and over — and do you think it was true?
+    text: What story about our family got told over and over, and how much of it do you think was true?
     hint: The ones that got polished by retelling are worth keeping too.
   - id: q009
     text: What do you wish you had asked your own parents or grandparents while they were still here?
