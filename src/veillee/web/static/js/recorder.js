@@ -14,6 +14,7 @@ window.veilleeRecorder = function (questionId) {
   return {
     supported: false,
     recording: false,
+    paused: false,
     uploading: false,
     elapsed: 0,
     level: 0,
@@ -83,13 +84,29 @@ window.veilleeRecorder = function (questionId) {
       this._recorder.start(CHUNK_MS);
 
       this.recording = true;
+      this.paused = false;
       this._startMeter();
       this._timer = window.setInterval(
         function () {
-          this.elapsed += 1;
+          if (!this.paused) this.elapsed += 1;
         }.bind(this),
         1000
       );
+    },
+
+    /* Pause and resume, so he can stop for a cup of tea or to find a name
+       without ending the recording and starting a second file. */
+    togglePause: function () {
+      if (!this._recorder) return;
+      if (this.paused) {
+        this._recorder.resume();
+        this.paused = false;
+        this._startMeter();
+      } else {
+        this._recorder.pause();
+        this.paused = true;
+        this.level = 0;
+      }
     },
 
     _pickFormat: function () {
@@ -129,6 +146,7 @@ window.veilleeRecorder = function (questionId) {
       await finished;
 
       this.recording = false;
+      this.paused = false;
       this._release();
       await Promise.all(this._pending);
 
@@ -166,7 +184,7 @@ window.veilleeRecorder = function (questionId) {
         source.connect(analyser);
         var data = new Uint8Array(analyser.frequencyBinCount);
         var tick = function () {
-          if (!this.recording) return;
+          if (!this.recording || this.paused) return;
           analyser.getByteTimeDomainData(data);
           var peak = 0;
           for (var i = 0; i < data.length; i++) {

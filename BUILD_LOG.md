@@ -175,3 +175,22 @@ All three commands were then run for real against the live containers:
 `make backup` (archive tar plus a consistent sqlite copy, and `/healthz`
 `last_backup` moved from `never` to a timestamp), and `make morning-check`
 (PASS, with the probe restored).
+
+## Final sweep against the specification
+
+Re-read the original requirements line by line against what shipped. Two gaps:
+
+- **Pause and resume were missing from the recorder.** Start and stop were
+  implemented; the requirement said "pause/resume" and it had been dropped. Now
+  implemented, with the elapsed clock frozen while paused, the level meter
+  stilled, the message "paused. Nothing has been lost.", and a test that pauses
+  mid-recording, resumes, stops, and asserts **one** file was produced rather
+  than two.
+- **htmx was vendored and loaded but never used.** Alpine earns its place
+  driving the recorder; htmx had no honest job, because every page here is a
+  full page with no partial-HTML swap. Shipping it would have been 51 KB of dead
+  weight on every page he opens. The `<script>` tag was removed and the file
+  kept for phase two. Recorded as a decision in HANDOFF.md rather than left
+  unexplained.
+
+Everything else in the specification was present and verified.

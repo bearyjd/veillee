@@ -110,6 +110,13 @@ a person might have authored. Clear it by hand whenever you like.
 vanishes it reports `degraded` with specific problems and still serves pages, so
 a broken transcode never stops him writing.
 
+**htmx is vendored but not loaded.** The stack named htmx and Alpine. Alpine
+does real work — it drives the recorder. htmx never found an honest job: every
+page here is a full page, one click from home, with no partial-HTML swap
+anywhere. Loading it anyway would have put 51 KB of dead JavaScript on every
+page he opens on an iPad over Tailscale. The file stays vendored in
+`static/vendor/` for phase two; the `<script>` tag is gone.
+
 **The passcode is off.** `VEILLEE_PASSCODE` in `.env` turns it on; the cookie
 then lasts five years so he is never asked twice on a device.
 

@@ -55,11 +55,19 @@
   <template x-if="supported">
     <div>
       <button type="button" class="record-button" id="record-button"
-              :data-recording="recording"
+              :data-recording="recording && !paused"
               @click="toggle()"
               :aria-label="recording ? 'Stop recording' : 'Start recording'">
         <span class="dot" aria-hidden="true"></span>
         <span x-text="recording ? 'Stop recording' : 'Start recording'">Start recording</span>
+      </button>
+
+      <button type="button" class="button secondary" id="pause-button"
+              x-show="recording" x-cloak
+              @click="togglePause()"
+              :aria-label="paused ? 'Carry on recording' : 'Pause the recording'"
+              style="width:100%;margin-top:0.75rem">
+        <span x-text="paused ? 'Carry on' : 'Pause'">Pause</span>
       </button>
 
       <div class="level-meter" role="presentation" x-show="recording">
@@ -67,7 +75,8 @@
       </div>
       <p class="elapsed" x-show="recording || elapsed > 0">
         <span x-text="clock"></span>
-        <span x-show="recording"> — recording, and saving as you go</span>
+        <span x-show="recording && !paused"> — recording, and saving as you go</span>
+        <span x-show="paused"> — paused. Nothing has been lost.</span>
       </p>
     </div>
   </template>

@@ -90,3 +90,55 @@ class TestMediaRecorderRoundTrip:
         assert guidance.is_visible()
 
         context.close()
+
+
+class TestPauseAndResume:
+    def test_he_can_pause_and_carry_on_without_starting_a_second_file(
+        self, fake_audio_browser: object, live_server: LiveServer
+    ) -> None:
+        """Stopping for a cup of tea must not end the recording."""
+        context = fake_audio_browser.new_context(permissions=["microphone"])  # type: ignore
+        page = context.new_page()
+        page.goto(live_server.url("/question/q015"), wait_until="load")
+
+        page.wait_for_selector("#record-button", timeout=20_000)
+        page.click("#record-button")
+        page.wait_for_timeout(4000)
+
+        page.click("#pause-button")
+        page.wait_for_timeout(500)
+        assert "Carry on" in page.locator("#pause-button").inner_text()
+        assert "paused" in page.locator(".elapsed").inner_text().lower()
+        assert "Nothing has been lost" in page.locator(".elapsed").inner_text()
+
+        # The clock must not advance while paused.
+        paused_at = page.locator(".elapsed").inner_text()
+        page.wait_for_timeout(2500)
+        assert page.locator(".elapsed").inner_text() == paused_at
+
+        page.click("#pause-button")
+        page.wait_for_timeout(3500)
+        assert "Pause" in page.locator("#pause-button").inner_text()
+        assert page.locator(".elapsed").inner_text() != paused_at
+
+        page.click("#record-button")
+        page.wait_for_selector(".recording-item", timeout=90_000)
+        context.close()
+
+        # One recording, not two.
+        assert len(list((live_server.data_dir / "audio").rglob("*.flac"))) == 1
+
+    def test_the_pause_button_is_hidden_until_he_is_recording(
+        self, fake_audio_browser: object, live_server: LiveServer
+    ) -> None:
+        context = fake_audio_browser.new_context(permissions=["microphone"])  # type: ignore
+        page = context.new_page()
+        page.goto(live_server.url("/question/q015"), wait_until="load")
+        page.wait_for_selector("#record-button", timeout=20_000)
+
+        assert not page.locator("#pause-button").is_visible()
+        page.click("#record-button")
+        page.wait_for_timeout(1500)
+        assert page.locator("#pause-button").is_visible()
+
+        context.close()
