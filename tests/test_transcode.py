@@ -21,7 +21,16 @@ from veillee.transcode import (
     to_opus,
 )
 
-pytestmark = pytest.mark.skipif(not ffmpeg_available(), reason="ffmpeg is not installed")
+
+def test_ffmpeg_is_installed() -> None:
+    """A hard requirement, not an optional extra.
+
+    Skipping the transcode tests when ffmpeg is missing would let a build go
+    green while no recording could be processed at all. Fail instead.
+    """
+    assert ffmpeg_available(), (
+        "ffmpeg and ffprobe are required; install them before running the suite"
+    )
 
 
 class TestTranscoding:

@@ -19,3 +19,6 @@ exports/
 *.log
 .env
 backups/
+
+# Editor/agent tooling state, not part of the project.
+.omc/
