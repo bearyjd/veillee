@@ -35,6 +35,11 @@ window.veilleeRecorder = function (questionId) {
       this.supported =
         typeof MediaRecorder !== "undefined" &&
         !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      /* Browsers withhold the microphone entirely from a page served over plain
+         http on anything but localhost, so this is not the browser being
+         awkward - it is the address. Saying so is the difference between a
+         two-minute fix and an hour of debugging Safari. */
+      this.insecureOrigin = !window.isSecureContext;
     },
 
     get clock() {

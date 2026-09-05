@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import subprocess
 from pathlib import Path
@@ -20,6 +21,30 @@ from tests.conftest import REPO_ROOT, LiveServer, free_port
 from veillee.cli import build_parser
 
 SCRIPTS = REPO_ROOT / "scripts"
+_VARIABLE = re.compile(r"\$\{[^}]*\}")
+
+
+def _split_port_mapping(mapping: str) -> tuple[str, str, str]:
+    """Split "host:published:target", tolerating ${VAR:-default} in any field.
+
+    Compose variable syntax contains colons of its own, so a plain rsplit
+    mis-parses it and would let a genuinely wrong binding through.
+    """
+    masked = _VARIABLE.sub(lambda m: "\0" * len(m.group()), mapping)
+    positions = [index for index, char in enumerate(masked) if char == ":"]
+    if len(positions) < 2:
+        return "", mapping, mapping
+    first, second = positions[-2], positions[-1]
+    return mapping[:first], mapping[first + 1 : second], mapping[second + 1 :]
+
+
+def _default_of(field: str) -> str:
+    """The value a ${VAR:-default} field falls back to, or the literal itself."""
+    match = _VARIABLE.fullmatch(field)
+    if not match:
+        return field
+    inner = field[2:-1]
+    return inner.split(":-", 1)[1] if ":-" in inner else ""
 
 
 def _run(script: str, *args: str, env: dict[str, str] | None = None, cwd: Path | None = None):
@@ -39,15 +64,29 @@ class TestItListensOnlyOnLoopback:
         args = build_parser().parse_args(["serve"])
         assert args.host == "127.0.0.1"
 
-    def test_compose_publishes_only_to_loopback(self) -> None:
-        """Binding 0.0.0.0 would put his memoirs on the LAN."""
+    def test_compose_never_publishes_to_every_interface(self) -> None:
+        """The rule is not "must be 127.0.0.1" - it is "never reachable off the
+        tailnet". The bind host is configurable so the site can be published
+        straight onto a tailnet address, but it must always be *some* address and
+        it must default to loopback. An unqualified port means 0.0.0.0, which
+        would put his memoirs on the LAN and on every other network this machine
+        ever joins.
+        """
         compose = yaml.safe_load((REPO_ROOT / "compose.yaml").read_text(encoding="utf-8"))
         published = [
-            port for service in compose["services"].values() for port in service.get("ports", [])
+            str(port)
+            for service in compose["services"].values()
+            for port in service.get("ports", [])
         ]
         assert published, "no published ports found; check the compose file"
+
         for port in published:
-            assert str(port).startswith("127.0.0.1:"), f"{port} is not loopback-only"
+            host, _, _ = _split_port_mapping(port)
+            assert host, f"{port} has no host binding, so it binds 0.0.0.0"
+            assert "0.0.0.0" not in host, f"{port} binds every interface"
+            assert _default_of(host) in {"127.0.0.1", "localhost"}, (
+                f"{port} does not resolve to loopback by default"
+            )
 
     def test_the_readme_warns_against_funnel_before_anything_else(self) -> None:
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
@@ -259,7 +298,7 @@ class TestMorningCheck:
         )
         assert result.returncode == 0, "runtime.sh switched on errexit for its caller"
 
-    def test_it_fails_clearly_when_nothing_is_running(self, tmp_path: Path) -> None:
+    def test_it_fails_clearly_when_nothing_is_running(self) -> None:
         result = _run(
             "morning-check.sh",
             env={"VEILLEE_PORT": str(free_port()), "VEILLEE_NO_AUTOSTART": "1"},

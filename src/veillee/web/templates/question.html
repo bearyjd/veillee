@@ -97,10 +97,21 @@
   </template>
 
   <template x-if="!supported">
-    <p class="notice">
-      This browser won't let the page record directly. Use the upload below —
-      record on your phone with Voice Memos and send it here. It works just as well.
-    </p>
+    <div>
+      <p class="notice" x-show="!insecureOrigin">
+        This browser won't let the page record directly. Use the upload below —
+        record on your phone with Voice Memos and send it here. It works just as well.
+      </p>
+      <p class="notice" x-show="insecureOrigin">
+        Recording needs the secure <strong>https</strong> address for this site.
+        You can still send a recording with the button below, and it is kept
+        exactly the same way.
+        <span class="card-note">
+          To turn recording on, run <code>tailscale serve --bg 8002</code> on the
+          machine and open the https address it prints.
+        </span>
+      </p>
+    </div>
   </template>
 
   <p class="notice problem" role="alert" x-show="error" x-text="error" x-cloak></p>

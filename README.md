@@ -19,6 +19,12 @@ years by anyone with a file browser.
 tailscale serve --bg "$(grep VEILLEE_PORT .env | cut -d= -f2)"
 ```
 
+**Use the https address `tailscale serve` prints.** Browsers withhold the
+microphone from a page served over plain http on anything but localhost, so
+in-page recording only works on a secure origin. Binding a tailnet address
+directly (`VEILLEE_BIND_HOST` in `.env`) is private and works for everything
+else, but the record button will not appear.
+
 That is the whole story: no accounts, no API keys, no cloud, no setup wizard.
 `up.sh` works out which container runtime is present, which uid the containers
 must run as so that `data/` ends up owned by you, and a port that is actually

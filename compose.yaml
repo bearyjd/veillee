@@ -12,8 +12,12 @@ services:
     image: veillee:latest
     command: ["veillee", "serve", "--host", "0.0.0.0", "--port", "8000"]
     user: "${VEILLEE_RUN_AS:-0}"
+    # Loopback by default, reached through `tailscale serve`. Set
+    # VEILLEE_BIND_HOST to your tailnet address (100.x.y.z) to publish straight
+    # onto the tailnet instead - see the note in HANDOFF.md about what that
+    # costs you.
     ports:
-      - "127.0.0.1:${VEILLEE_PORT:-8000}:8000"
+      - "${VEILLEE_BIND_HOST:-127.0.0.1}:${VEILLEE_PORT:-8000}:8000"
     volumes:
       - ./data:/data:z
     environment:

@@ -21,11 +21,41 @@ the same on every restart. When this was last run it chose **8002**:
 Veillee is on http://127.0.0.1:8002
 ```
 
-Then publish that port to your tailnet:
+**It is already published on your tailnet.** The app is bound to this machine's
+tailnet address, so from any device on the tailnet:
+
+```
+http://<tailnet-ip>:8002
+```
+
+That works right now, with no further commands. **But read the next paragraph
+before you give him that address.**
+
+### The address decides whether he can record
+
+Browsers refuse to hand the microphone to a page served over plain `http` on
+anything but localhost. Verified on the running site: at
+`http://<tailnet-ip>:8002` the page reports `isSecureContext = false`,
+`navigator.mediaDevices` is **undefined**, and the record button is not rendered
+at all. The upload path still works, and the page now says plainly that it is the
+address rather than the browser at fault.
+
+To give him the record button, publish over HTTPS instead — one command, run on
+the host in your own terminal:
 
 ```bash
-tailscale serve --bg 8002        # or whatever port up.sh printed
+tailscale serve --bg 8002
 ```
+
+Then hand him the `https://<machine>.<tailnet>.ts.net` address Tailscale prints.
+That is a secure context, so `MediaRecorder` works and both audio paths are live.
+
+|  | `http://<tailnet-ip>:8002` | `https://…ts.net` via `tailscale serve` |
+|---|---|---|
+| Writing, autosave, everything else | works | works |
+| Upload a recording (Path B) | works | works |
+| Record in the page (Path A) | **not available** | works |
+| Setup needed | none, it is running | one command on the host |
 
 Open the `https://<machine>.<tailnet>.ts.net` address Tailscale prints. That is
 the address to give him. **Never run `tailscale funnel`** — that publishes to the
@@ -37,17 +67,16 @@ under `data/demo/`.
 
 There is no login, no API key, and no setup wizard. He opens the link and writes.
 
-**Run the tailscale command on the host, in your own terminal.** The session
+**`tailscale serve` must be run on the host, in your own terminal.** The session
 that built this ran inside a container with no `tailscale` CLI and no systemd,
-so it could not publish the site for you. Tailscale itself is up and connected
-on the host — this machine is `<tailnet-ip>` on your tailnet. The containers
-are real host containers (started through the host's podman) and the app is
-listening on the host's loopback, so `tailscale serve` will reach it.
+so it could not run that command for you — which is why the site was published
+by binding the tailnet address directly instead.
 
-**The security boundary was checked on the running deployment, not just claimed.**
-`127.0.0.1:8002` answers; `<tailnet-ip>:8002` refuses the connection. The app
-is genuinely loopback-only, which is why `tailscale serve` is required to reach
-it at all — and why Funnel would be so dangerous.
+**Still only reachable from your tailnet.** `VEILLEE_BIND_HOST` in `.env` is set
+to `<tailnet-ip>`, which is a tailnet-only interface — not the LAN, and not the
+internet. Set it back to `127.0.0.1` to return to loopback-only. A test asserts
+the bind host always defaults to loopback and can never become `0.0.0.0`, which
+is the setting that *would* expose him.
 
 **This machine has no Docker.** It has podman 5.8.4 with a working Compose
 provider, and `up.sh` detects whichever runtime is present. `compose.yaml` is
