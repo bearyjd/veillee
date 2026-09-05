@@ -359,3 +359,30 @@ RUN1_EXIT=0                           RUN2_EXIT=0
 the tests for claims that had been made without them, and a fifth - the sourced
 library forcing errexit - by running from a clean checkout rather than a working
 tree.
+
+## Published on the tailnet address
+
+Asked to publish it on the tailscale IP. Done - `VEILLEE_BIND_HOST` in `.env`
+points at `<tailnet-ip>`, and the site answers there across the tailnet with no
+further commands.
+
+Checking it first was worth it. Browsers withhold the microphone from a page
+served over plain http on anything but localhost, so this **silently disables the
+record button**. Verified on the running site rather than assumed:
+`isSecureContext = false`, `navigator.mediaDevices` undefined, no record button
+rendered. Everything else - writing, autosave, playback, upload - is unaffected,
+and the graceful fallback behaved exactly as designed.
+
+The page used to say "This browser won't let the page record directly", which is
+wrong here and would send his son debugging Safari for an hour. It now names the
+address as the cause and prints the one command that fixes it.
+
+The bind test was rewritten to the honest rule - never `0.0.0.0`, always
+defaulting to loopback - rather than "must literally be 127.0.0.1", since the
+bind host is now deliberately configurable. Writing it found that a naive
+`rsplit(":", 2)` mis-parses compose's `${VAR:-default}` syntax, because the
+variable form contains colons of its own; it would have let a genuinely wrong
+binding through. Now masks variables before splitting.
+
+Gate: `make verify` green twice from a fresh clone of `0957449` - 189 unit and
+integration, 64 browser, smoke passed. 253 tests.

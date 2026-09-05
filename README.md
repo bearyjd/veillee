@@ -84,7 +84,7 @@ beside it and never overwritten.
 ## Commands
 
 ```bash
-make verify        # lint + 189 unit/integration + 59 browser + container smoke
+make verify        # lint + 189 unit/integration + 64 browser + container smoke
 make morning-check # 30 seconds: is it working right now?
 make reindex       # rebuild the index from data/ alone
 make export        # dated folder: markdown book, offline HTML site, manifest
