@@ -28,7 +28,12 @@ tailnet address, so from any device on the tailnet:
 http://<tailnet-ip>:8002
 ```
 
-That works right now, with no further commands. **But read the next paragraph
+**The `:8002` is not optional.** Typing `<tailnet-ip>` on its own goes to port
+80, where nothing is listening, and the browser says `ERR_CONNECTION_REFUSED` —
+which reads like the whole thing is down when it is fine. Port 80 cannot be used
+here: this machine only lets unprivileged processes bind 1024 and above.
+
+That address works right now, with no further commands. **But read the next paragraph
 before you give him that address.**
 
 ### The address decides whether he can record
