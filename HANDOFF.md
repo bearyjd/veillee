@@ -21,51 +21,35 @@ the same on every restart. When this was last run it chose **8002**:
 Veillee is on http://127.0.0.1:8002
 ```
 
-**It is already published on your tailnet.** The app is bound to this machine's
-tailnet address, so from any device on the tailnet:
+**It is published, over HTTPS, on your tailnet.** Give him this address:
 
 ```
-http://<tailnet-ip>:8002
+https://<machine>.<tailnet>.ts.net
 ```
 
-**The `:8002` is not optional.** Typing `<tailnet-ip>` on its own goes to port
-80, where nothing is listening, and the browser says `ERR_CONNECTION_REFUSED` —
-which reads like the whole thing is down when it is fine. Port 80 cannot be used
-here: this machine only lets unprivileged processes bind 1024 and above.
+No port, no IP, a real Let's Encrypt certificate, and nothing further to run.
+`tailscale serve` is already configured to proxy it to `127.0.0.1:8002`, and the
+app is bound to loopback only, so that address is the single way in.
 
-That address works right now, with no further commands. **But read the next paragraph
-before you give him that address.**
+**It is not public.** The serve configuration has no `AllowFunnel` key, which is
+the setting that would expose it to the internet. Verified after applying it.
 
-### The address decides whether he can record
+**Recording works on this address and would not have on a plain-http one.**
+Browsers withhold the microphone from any non-localhost page served over `http`.
+Checked on the live site: `isSecureContext` is true, `getUserMedia` is available,
+and the record button renders.
 
-Browsers refuse to hand the microphone to a page served over plain `http` on
-anything but localhost. Verified on the running site: at
-`http://<tailnet-ip>:8002` the page reports `isSecureContext = false`,
-`navigator.mediaDevices` is **undefined**, and the record button is not rendered
-at all. The upload path still works, and the page now says plainly that it is the
-address rather than the browser at fault.
-
-To give him the record button, publish over HTTPS instead — one command, run on
-the host in your own terminal:
+If you ever need to reconfigure it, the equivalent command on the host is:
 
 ```bash
-tailscale serve --bg 8002
+tailscale serve --bg 8002        # never `tailscale funnel`
 ```
 
-Then hand him the `https://<machine>.<tailnet>.ts.net` address Tailscale prints.
-That is a secure context, so `MediaRecorder` works and both audio paths are live.
-
-|  | `http://<tailnet-ip>:8002` | `https://…ts.net` via `tailscale serve` |
-|---|---|---|
-| Writing, autosave, everything else | works | works |
-| Upload a recording (Path B) | works | works |
-| Record in the page (Path A) | **not available** | works |
-| Setup needed | none, it is running | one command on the host |
-
-Open the `https://<machine>.<tailnet>.ts.net` address Tailscale prints. That is
-the address to give him. **Never run `tailscale funnel`** — that publishes to the
-public internet. `serve` keeps it inside your tailnet, which is this app's entire
-security boundary.
+**Never run `tailscale funnel`** — that publishes to the public internet.
+`serve` keeps it inside your tailnet, which is this app's entire security
+boundary. The same goes for any reverse proxy: this app has **no authentication
+at all** unless you set `VEILLEE_PASSCODE`, so a public hostname in front of it
+means anyone who finds the name can read his answers and overwrite them.
 
 It is already running as you read this, with an empty archive and the demo
 under `data/demo/`.

@@ -25,6 +25,10 @@ in-page recording only works on a secure origin. Binding a tailnet address
 directly (`VEILLEE_BIND_HOST` in `.env`) is private and works for everything
 else, but the record button will not appear.
 
+**Do not put a public reverse proxy in front of this.** There is no
+authentication unless you set `VEILLEE_PASSCODE`; a public hostname means anyone
+who finds it can read and overwrite the answers.
+
 That is the whole story: no accounts, no API keys, no cloud, no setup wizard.
 `up.sh` works out which container runtime is present, which uid the containers
 must run as so that `data/` ends up owned by you, and a port that is actually
