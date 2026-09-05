@@ -37,6 +37,18 @@ under `data/demo/`.
 
 There is no login, no API key, and no setup wizard. He opens the link and writes.
 
+**Run the tailscale command on the host, in your own terminal.** The session
+that built this ran inside a container with no `tailscale` CLI and no systemd,
+so it could not publish the site for you. Tailscale itself is up and connected
+on the host — this machine is `<tailnet-ip>` on your tailnet. The containers
+are real host containers (started through the host's podman) and the app is
+listening on the host's loopback, so `tailscale serve` will reach it.
+
+**The security boundary was checked on the running deployment, not just claimed.**
+`127.0.0.1:8002` answers; `<tailnet-ip>:8002` refuses the connection. The app
+is genuinely loopback-only, which is why `tailscale serve` is required to reach
+it at all — and why Funnel would be so dangerous.
+
 **This machine has no Docker.** It has podman 5.8.4 with a working Compose
 provider, and `up.sh` detects whichever runtime is present. `compose.yaml` is
 plain Compose spec, so it will run unmodified on a Docker host too.
