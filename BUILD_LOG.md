@@ -412,3 +412,30 @@ answer owned by the host user.
 
 Seven new tests, including one asserting every compose variable carries a
 default so a fresh host can boot without an env file.
+
+## A Docker-only bug, found by running CI on Docker
+
+Everything in this project was developed against podman, and every claim about
+Docker rested on the compose file being spec-compliant. Adding `make smoke` to
+CI - where the runner has real Docker - turned that claim into a test, and it
+failed on the first run.
+
+`docker compose exec` runs a command inside the already-running container and
+**skips ENTRYPOINT entirely**. The entrypoint is what works out which uid to
+run as, so `veillee export` and `veillee reindex` were executing as root on
+rootful Docker and writing root-owned files into the bind-mounted archive:
+
+```
+grep: .../data/exports/.../veillee-book.md: Permission denied
+   FAIL the book is missing the answer
+```
+
+This is invisible under rootless podman, where container root already maps to
+the host user - so it would have shipped, and would have appeared the first time
+anyone ran an export on a Docker host. The archive files themselves were fine;
+only one-off commands were affected.
+
+Fixed by using `docker compose run --rm`, which does go through the entrypoint.
+The smoke test now also asserts the export is readable by the person running it,
+rather than only that the files exist - the previous check passed on a file it
+could not actually read.

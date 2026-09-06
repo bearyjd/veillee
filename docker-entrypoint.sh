@@ -10,6 +10,11 @@
 #
 # Rather than making you configure that, we detect it. /proc/self/uid_map tells
 # us whether container uid 0 is real root or a user-namespace illusion.
+#
+# NOTE: `docker compose exec` skips ENTRYPOINT entirely, so a one-off command
+# run that way is root on a rootful runtime and will leave root-owned files in
+# the archive. Use `docker compose run --rm app veillee ...` instead, which does
+# go through here.
 set -e
 
 DATA="${VEILLEE_DATA_DIR:-/data}"

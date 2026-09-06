@@ -124,7 +124,7 @@ else
 fi
 
 step "exporting"
-$COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" exec -T app \
+$COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" run --rm -T app \
   veillee export --into /data/exports >/dev/null 2>&1 || fail "export command failed"
 
 EXPORT_DIR=$(find "$WORKDIR/data/exports" -maxdepth 1 -type d -name 'veillee-*' 2>/dev/null | head -1)
@@ -133,6 +133,11 @@ if [ -n "$EXPORT_DIR" ]; then
   for artefact in veillee-book.md index.html manifest.json; do
     [ -f "$EXPORT_DIR/$artefact" ] && ok "$artefact present" || fail "$artefact missing"
   done
+  if [ -r "$EXPORT_DIR/veillee-book.md" ]; then
+    ok "the export is readable on the host as $(id -un)"
+  else
+    fail "the export is not readable by you (one-off commands ran as the wrong user)"
+  fi
   grep -q "Saturday night" "$EXPORT_DIR/veillee-book.md" \
     && ok "the book contains his answer" || fail "the book is missing the answer"
   find "$EXPORT_DIR/audio" -name '*.opus' 2>/dev/null | grep -q . \
@@ -142,8 +147,8 @@ else
 fi
 
 step "verifying the index can be rebuilt from the archive alone"
-$COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" exec -T app rm -f /data/veillee.db /data/veillee.db-wal /data/veillee.db-shm
-REINDEX=$($COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" exec -T app veillee reindex 2>&1 || true)
+$COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" run --rm -T app rm -f /data/veillee.db /data/veillee.db-wal /data/veillee.db-shm
+REINDEX=$($COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" run --rm -T app veillee reindex 2>&1 || true)
 echo "$REINDEX" | grep -q "Indexed 1 answers and 1 recordings" \
   && ok "reindex recovered everything from disk" \
   || fail "reindex did not recover the archive: $REINDEX"

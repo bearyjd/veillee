@@ -238,7 +238,7 @@ podman save veillee:latest | gzip > veillee.tar.gz   # just the image, 2.1 GB
 
 ```bash
 docker compose -f compose.registry.yaml up -d
-docker compose -f compose.registry.yaml exec app veillee reindex
+docker compose -f compose.registry.yaml run --rm app veillee reindex
 ```
 
 The image is 2.1 GB, most of it the baked-in whisper model (464 MB) and the
@@ -370,6 +370,21 @@ make reindex
 Deleted recordings are in `data/.trash/`, never unlinked. `data/` is also a git
 repository: `git -C data log --oneline` and `git -C data show <commit>` will show
 you every save.
+
+**Running a one-off command**
+
+Use `run --rm`, never `exec`:
+
+```bash
+docker compose run --rm app veillee reindex
+docker compose run --rm app veillee export --into /data/exports
+```
+
+`docker compose exec` runs inside the live container and **skips the
+entrypoint**, which is what works out the right user. On rootful Docker that
+means the command runs as root and leaves root-owned files in `data/` that you
+cannot open. Found by running the smoke test on a real Docker host in CI; it is
+invisible under rootless podman, where container root already is your user.
 
 **The site loads but shows nothing / shows stale answers**
 
