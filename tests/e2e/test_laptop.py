@@ -37,9 +37,7 @@ class TestStartingToWrite:
             "() => document.getElementById('editor-frame').contains(document.activeElement)"
         ), "he would have to find the box himself"
 
-    def test_the_question_is_still_on_screen(
-        self, page: object, live_server: LiveServer
-    ) -> None:
+    def test_the_question_is_still_on_screen(self, page: object, live_server: LiveServer) -> None:
         """Landing in the box is no use if it scrolled the question away."""
         page.goto(live_server.url("/question/q040"), wait_until="load")  # type: ignore
         editor_locator(page)
