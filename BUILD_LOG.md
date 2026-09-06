@@ -463,3 +463,20 @@ would be unforgivable.
 Layout verified at 1280x800, 1366x768, 1440x900 and 1920x1080: 20px body text,
 no sideways scrolling, and the line length held between 400 and 900 pixels so
 text does not run the full width of a wide screen. Eleven new tests.
+
+## The last untested claim
+
+The remote transcription backend was the one piece of shipped code whose
+behaviour was pure assertion - no test of any kind, never run. Closed with
+fourteen tests that stand up a real HTTP server speaking the OpenAI-compatible
+`/v1/audio/transcriptions` shape, so the code makes genuine requests over a
+genuine socket: URL construction, the bearer token, the multipart body with the
+actual audio bytes in it, segment parsing, the plain-text fallback for servers
+that return no segments, and every failure path including an unreachable host.
+
+All fourteen passed first time, so the implementation had been right - but that
+was luck rather than knowledge, and it is no longer either.
+
+Also: a push went out having run `ruff check` rather than `make lint`, so a
+formatting drift in a test file reached CI. Verifying with a narrower command
+than the gate is exactly the failure this project keeps finding in itself.

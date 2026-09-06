@@ -257,9 +257,12 @@ gated. For completeness, the things deliberately left out:
   named as phase two. Seams are clean and nothing is stubbed — there is no
   placeholder UI, no handler returning fake data, and no commented-out test.
 - No accounts, analytics, telemetry, or public deployment, by design.
-- The remote transcription backend is implemented but **has no test of any kind**
-  and has never been run against a live endpoint. Treat it as unverified code.
-  Local is the default and is what the smoke test exercises.
+- The remote transcription backend now has fourteen tests, run against a real
+  HTTP server speaking the OpenAI-compatible shape, so the requests it makes are
+  genuine rather than mocked. It has still never been pointed at a *commercial*
+  endpoint, because that needs an API key — but the request it builds, the bearer
+  token, the multipart body, the segment parsing and every failure path are
+  checked. Local remains the default.
 - `data/` auto-commits but never pushes. Setting up a remote is a decision about
   where his private words travel, and it is yours to make.
 
@@ -284,7 +287,7 @@ The remaining honest limits:
 
 | Claim | Status |
 |---|---|
-| The remote transcription backend | **No test, never run.** Unverified code. Local is the default and is what everything else exercises. |
+| The remote transcription backend | Fourteen tests against a real HTTP server. Never pointed at a commercial endpoint (needs an API key), but every request it builds and every failure path is checked. |
 | `up.sh` starting real containers | The port choice, `.env` writing and refusal to clobber are tested against a stub runtime. The container start itself is covered by `scripts/smoke.sh`. |
 
 ---|---|
