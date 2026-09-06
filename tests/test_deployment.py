@@ -444,6 +444,25 @@ class TestPlainDockerCompose:
         assert "/proc/self/uid_map" in script
 
 
+def test_the_smoke_script_matches_what_reindex_actually_prints() -> None:
+    """The smoke test asserted on an exact sentence, and the sentence changed.
+
+    Photographs were added to the reindex summary and the shell script kept
+    grepping for the old wording, so a green suite sat behind a red gate. This
+    keeps the two honest about each other.
+    """
+    import re
+
+    cli = (REPO_ROOT / "src" / "veillee" / "cli.py").read_text(encoding="utf-8")
+    smoke = (REPO_ROOT / "scripts" / "smoke.sh").read_text(encoding="utf-8")
+
+    printed = re.search(r'f"Indexed \{report\.answers\} (\w+)', cli)
+    assert printed, "could not find the reindex summary in cli.py"
+    assert f"Indexed 1 {printed.group(1)}" in smoke, (
+        "smoke.sh greps for wording that cli.py no longer prints"
+    )
+
+
 def test_the_dockerfile_bakes_the_transcription_model_in() -> None:
     """So the first recording of the morning is not waiting on a download."""
     dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")

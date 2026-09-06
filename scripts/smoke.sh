@@ -149,9 +149,13 @@ fi
 step "verifying the index can be rebuilt from the archive alone"
 $COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" run --rm -T app rm -f /data/veillee.db /data/veillee.db-wal /data/veillee.db-shm
 REINDEX=$($COMPOSE -p "$PROJECT" --project-directory "$WORKDIR" -f "$WORKDIR/compose.yaml" run --rm -T app veillee reindex 2>&1 || true)
-echo "$REINDEX" | grep -q "Indexed 1 answers and 1 recordings" \
-  && ok "reindex recovered everything from disk" \
-  || fail "reindex did not recover the archive: $REINDEX"
+# Match the counts, not the sentence. This assertion broke once because the
+# wording changed when photographs were added, while the behaviour was fine.
+if echo "$REINDEX" | grep -qE "Indexed 1 answers" && echo "$REINDEX" | grep -qE "1 recordings"; then
+  ok "reindex recovered everything from disk"
+else
+  fail "reindex did not recover the archive: $REINDEX"
+fi
 
 echo
 if [ "$FAILED" = "0" ]; then

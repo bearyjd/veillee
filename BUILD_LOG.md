@@ -532,3 +532,21 @@ Three defects found while building, all by tests:
   existing recording tests began matching the wrong one. Both dialogs now carry
   distinct ids and the tests are scoped to their own section - a good reminder
   that a shared class name is not a selector.
+
+### A green suite behind a red gate
+
+CI failed on the phase-two push, and the cause is worth writing down because it
+is the third time this project has produced the same shape of bug.
+
+`scripts/smoke.sh` asserted on an exact sentence:
+
+    grep -q "Indexed 1 answers and 1 recordings"
+
+Adding photographs changed that sentence to "Indexed 1 answers, 1 recordings and
+0 photographs." The behaviour was perfectly correct - the reindex recovered
+everything - but the gate went red while 343 tests stayed green.
+
+Now it matches the counts rather than the prose, and a unit test reads both
+`cli.py` and `smoke.sh` and fails if the shell script greps for wording the CLI
+no longer prints. Coupling an assertion to phrasing is the same mistake as
+asserting a file exists rather than that it is readable.

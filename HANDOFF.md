@@ -122,7 +122,7 @@ whatever happens, the previous version is also in `data/.revisions/q120/`.
 The fuller gate, if you have ten minutes and want to be certain:
 
 ```bash
-make verify        # lint, 210 unit/integration tests, 75 browser tests, then the container smoke test
+make verify        # lint, 262 unit/integration tests, 82 browser tests, then the container smoke test
 ```
 
 `make verify` passing is the definition of done. It was run twice in a row from
