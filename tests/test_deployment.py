@@ -323,11 +323,17 @@ class TestUpScript:
             (work / "scripts" / name).chmod(0o755)
         (work / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
 
+        # detect_compose prefers docker when it is present, so stub both or the
+        # test passes on a podman host and shells out to a real runtime on a
+        # docker one. CI caught exactly that.
         stub_bin = tmp_path / "bin"
         stub_bin.mkdir()
-        stub = stub_bin / "podman"
-        stub.write_text('#!/usr/bin/env bash\necho "$@" >> "$STUB_LOG"\nexit 0\n', encoding="utf-8")
-        stub.chmod(0o755)
+        for runtime in ("docker", "podman"):
+            stub = stub_bin / runtime
+            stub.write_text(
+                '#!/usr/bin/env bash\necho "$@" >> "$STUB_LOG"\nexit 0\n', encoding="utf-8"
+            )
+            stub.chmod(0o755)
         log = tmp_path / "stub.log"
 
         result = subprocess.run(
@@ -349,6 +355,7 @@ class TestUpScript:
         assert "VEILLEE_RUN_AS=" in env_file
         assert "VEILLEE_PORT=" in env_file
         assert "compose up -d --build" in log.read_text(encoding="utf-8")
+        assert "STUB_LOG" not in log.read_text(encoding="utf-8")
         assert "NEVER use tailscale funnel" in result.stdout
 
     def test_it_reuses_a_port_already_chosen(self, tmp_path: Path) -> None:
@@ -367,8 +374,9 @@ class TestUpScript:
 
         stub_bin = tmp_path / "bin"
         stub_bin.mkdir()
-        (stub_bin / "podman").write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
-        (stub_bin / "podman").chmod(0o755)
+        for runtime in ("docker", "podman"):
+            (stub_bin / runtime).write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+            (stub_bin / runtime).chmod(0o755)
 
         result = subprocess.run(
             [str(work / "scripts" / "up.sh")],
