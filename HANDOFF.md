@@ -207,7 +207,7 @@ The image is the easy way to move hosts: the new machine pulls it instead of
 building, and nothing but `compose.registry.yaml` and `data/` needs to travel.
 
 **Where:** GitHub Container Registry, `ghcr.io`. You are already signed in to
-GitHub as `bearyjd`, it is free for both public and private images, and it has
+GitHub, it is free for both public and private images, and it has
 none of Docker Hub's pull rate limits. `.github/workflows/publish.yml` builds and
 pushes on every push to `main` and on any `v*` tag, using the built-in
 `GITHUB_TOKEN` — there is no secret to configure.
