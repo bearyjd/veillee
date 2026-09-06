@@ -550,3 +550,30 @@ Now it matches the counts rather than the prose, and a unit test reads both
 `cli.py` and `smoke.sh` and fails if the shell script greps for wording the CLI
 no longer prints. Coupling an assertion to phrasing is the same mistake as
 asserting a file exists rather than that it is readable.
+
+## The backup timer, and a handover that contradicted itself
+
+Installed and enabled the nightly timer, then fired it by hand to prove it
+rather than trusting the unit file: it wrote a 109 MB archive and `/healthz`
+moved from "never" to a timestamp. Lingering was already on for the account, so
+it runs whether or not anyone is logged in, and `Persistent=true` means a
+backup missed while the machine slept runs on the next wake.
+
+`backup.sh` had **no retention**, which matters far more for a timer than for a
+command run by hand: a nightly full copy of a growing audio archive fills the
+disk quietly. It now keeps the last fourteen of each kind, with two tests -
+one that twenty backups become fourteen, and one that the copy it just made is
+never the one pruned.
+
+Then, asked whether the handover was current, audited it instead of answering
+from memory. It was not, and one fault was worse than staleness: **HANDOFF.md
+contained two contradictory tables.** When the coverage list was corrected
+earlier, the old version was left orphaned below a stray table separator, still
+claiming nine things had no tests - git auto-commit, the passcode flow, the
+worker loop, autosave on blur, transcripts, the shell scripts, the loopback
+bind. Every one of those had since been closed, several of them having exposed
+real defects on the way. A reader would have believed the pessimistic half.
+
+Also corrected: the archive is no longer empty (two answers, a seven-minute
+recording, two photographs); his browser is no longer untested, because he
+recorded seven minutes on Windows Chrome; and his laptop is on the tailnet.

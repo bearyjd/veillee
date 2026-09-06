@@ -201,6 +201,79 @@ class TestBackup:
             names = archive.getnames()
         assert any(name.endswith("012-x.md") for name in names)
 
+    def test_it_keeps_only_the_most_recent_backups(self, tmp_path: Path) -> None:
+        """A nightly full copy of a growing audio archive would fill the disk.
+
+        Retention matters more here than in most places: the timer runs
+        unattended, and a disk full of backups is a poor way to protect
+        something whose whole promise is that it is never lost.
+        """
+        data = tmp_path / "data"
+        (data / "answers").mkdir(parents=True)
+        (data / "answers" / "012-x.md").write_text("his words", encoding="utf-8")
+        backups = tmp_path / "backups"
+        backups.mkdir()
+
+        import os as _os
+        import time as _time
+
+        for day in range(1, 21):
+            for name in (
+                f"veillee-data-202608{day:02d}-000000.tar.gz",
+                f"veillee-db-202608{day:02d}-000000.sqlite",
+            ):
+                path = backups / name
+                path.write_text("old", encoding="utf-8")
+                stamp = _time.time() - (30 - day) * 86400
+                _os.utime(path, (stamp, stamp))
+
+        _run(
+            "backup.sh",
+            env={
+                "VEILLEE_DATA_DIR": str(data),
+                "VEILLEE_DB_PATH": str(data / "none.db"),
+                "VEILLEE_BACKUP_DIR": str(backups),
+                "VEILLEE_BACKUP_KEEP": "14",
+            },
+            cwd=tmp_path,
+        )
+
+        archives = sorted(backups.glob("veillee-data-*.tar.gz"))
+        assert len(archives) == 14, f"kept {len(archives)}, expected 14"
+        # The newest is the one just written; the oldest are gone.
+        assert not (backups / "veillee-data-20260801-000000.tar.gz").exists()
+        assert len(list(backups.glob("veillee-db-*.sqlite"))) <= 14
+
+    def test_retention_never_removes_the_backup_it_just_made(self, tmp_path: Path) -> None:
+        data = tmp_path / "data"
+        (data / "answers").mkdir(parents=True)
+        (data / "answers" / "012-x.md").write_text("his words", encoding="utf-8")
+        backups = tmp_path / "backups"
+        backups.mkdir()
+        for index in range(5):
+            (backups / f"veillee-data-2026080{index}-000000.tar.gz").write_text("old")
+
+        result = _run(
+            "backup.sh",
+            env={
+                "VEILLEE_DATA_DIR": str(data),
+                "VEILLEE_DB_PATH": str(data / "none.db"),
+                "VEILLEE_BACKUP_DIR": str(backups),
+                "VEILLEE_BACKUP_KEEP": "2",
+            },
+            cwd=tmp_path,
+        )
+
+        assert result.returncode == 0, result.stderr
+        remaining = sorted(backups.glob("veillee-data-*.tar.gz"))
+        assert len(remaining) == 2
+        # One of them must be the fresh one, or the whole run was pointless.
+        import tarfile
+
+        newest = max(remaining, key=lambda p: p.stat().st_mtime)
+        with tarfile.open(newest) as archive:
+            assert any(n.endswith("012-x.md") for n in archive.getnames())
+
     def test_it_records_the_backup_so_healthz_can_report_it(self, tmp_path: Path) -> None:
         """/healthz claims to show the last successful backup. Only this writes it."""
         data = tmp_path / "data"

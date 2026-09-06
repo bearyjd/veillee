@@ -47,4 +47,26 @@ c.commit(); c.close()
 " "$DB_PATH"
 fi
 
+# Keep the last N of each kind. A nightly full copy of a growing audio archive
+# would otherwise fill the disk quietly, which is a poor way to protect
+# something whose whole promise is that it is never lost.
+KEEP="${VEILLEE_BACKUP_KEEP:-14}"
+prune() {
+  local pattern="$1" kept=0
+  # Newest first; anything past the limit goes.
+  while IFS= read -r old; do
+    kept=$((kept + 1))
+    if [ "$kept" -gt "$KEEP" ]; then
+      rm -f "$old"
+      echo "pruned:   $(basename "$old")"
+    fi
+  done < <(find "$BACKUP_DIR" -maxdepth 1 -name "$pattern" -printf '%T@ %p\n' 2>/dev/null \
+           | sort -rn | cut -d' ' -f2-)
+}
+prune 'veillee-data-*.tar.gz'
+prune 'veillee-db-*.sqlite'
+
+REMAINING=$(find "$BACKUP_DIR" -maxdepth 1 -name 'veillee-data-*.tar.gz' | wc -l)
+TOTAL=$(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1)
+echo "keeping:  $REMAINING backup(s), $TOTAL in $BACKUP_DIR (limit $KEEP)"
 echo "Backup complete. Nothing was pushed anywhere."

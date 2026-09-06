@@ -63,8 +63,9 @@ boundary. The same goes for any reverse proxy: this app has **no authentication
 at all** unless you set `VEILLEE_PASSCODE`, so a public hostname in front of it
 means anyone who finds the name can read his answers and overwrite them.
 
-It is already running as you read this, with an empty archive and the demo
-under `data/demo/`.
+It is already running as you read this, and he has already used it: two written
+answers, a seven-minute recording of the orchard story, and two photographs of
+the Weller farmhouse. A worked example of the file format sits in `data/demo/`.
 
 There is no login, no API key, and no setup wizard. He opens the link and writes.
 
@@ -88,11 +89,14 @@ plain Compose spec, so it will run unmodified on a Docker host too.
 ### He has to be on your tailnet
 
 There is no login. He opens the link and writes — that is the whole design. But
-both addresses resolve only to tailnet addresses, so **his device must be signed
-in to your tailnet or it cannot reach the site at all**. Nothing in the device
-list looks like his laptop yet.
+both addresses resolve only to tailnet addresses, so **a device must be signed in
+to your tailnet or it cannot reach the site at all**.
 
-Give him access by one of:
+**This is done.** He has been writing and recording, and the only Windows machine
+online in the tailnet is `DESKTOP-GM7IC69`, which matches the browser his
+recording came from. Nothing further is needed.
+
+If you ever have to do it again, for him or for anyone else:
 
 - **Install Tailscale on his laptop** and sign it in to your tailnet. Easiest on
   a laptop — there are desktop clients for Windows, macOS and Linux, and once it
@@ -331,18 +335,15 @@ The remaining honest limits:
 | Claim | Status |
 |---|---|
 | The remote transcription backend | Fourteen tests against a real HTTP server. Never pointed at a commercial endpoint (needs an API key), but every request it builds and every failure path is checked. |
-| `up.sh` starting real containers | The port choice, `.env` writing and refusal to clobber are tested against a stub runtime. The container start itself is covered by `scripts/smoke.sh`. |
+| `up.sh` starting real containers | The port choice, `.env` writing and refusal to clobber are tested against a stub runtime. The container start itself is covered by `scripts/smoke.sh`, which CI runs on real Docker. |
+| Lingering, if it is ever turned off | The backup timer is a *user* timer. It runs unattended because `/var/lib/systemd/linger/user` exists. Nothing tests that, because it is a property of the machine rather than of this software. |
 
----|---|
-| `data/` auto-commits on save | **No test.** Both fixtures set `VEILLEE_GIT_AUTOCOMMIT=0`, so no test ever exercises it. Verified by hand over HTTP; `git -C data log` showed the commits. |
-| `data/` is never auto-pushed | **No test.** True by inspection — no push call exists anywhere in the code. |
-| The passcode flow | **No test** beyond an accessibility scan of `/enter`. Nothing checks that a wrong passcode is rejected, that a right one sets the cookie, or that the cookie persists. It is off by default. |
-| Transcripts are never shown to him | **No test.** Enforced by the routes, but nothing asserts a transcript's words are absent from his pages. |
-| The machine transcript is preserved when you edit it | **No test.** The code writes a `.machine.md` beside it and a history entry; nothing verifies it happens. |
-| The worker loop itself | **No unit test.** The queue primitives are tested and the smoke test proves a real transcript appears end to end, but `Worker.run_once` and its failure handling are not directly tested. |
-| Autosave on blur | **No test.** The five-second interval and the beacon on navigation are both tested; the blur handler specifically is not. |
-| `up.sh`, `backup.sh`, `morning-check.sh` | **No automated coverage.** `make verify` does not touch them. Each was run by hand against the live containers, and the morning-check failure path was tested by forcing it. |
-| The app binds 127.0.0.1 only | **No test.** It is the default in `cli.py` and compose publishes to `127.0.0.1:`. Check it with `ss -ltn`. |
+Everything else that was once listed here as untested now has a test. The
+earlier version of this table claimed nine gaps — git auto-commit, the passcode
+flow, the worker loop, autosave on blur, transcripts, the shell scripts and the
+loopback bind. All nine were closed, and several of them turned out to be hiding
+real defects.
+
 
 ---
 
@@ -350,12 +351,15 @@ The remaining honest limits:
 
 ### His browser — read this one
 
-**He uses a laptop, not a tablet.** That is better news than the original plan:
-`MediaRecorder` is well supported by every current desktop browser, and the
-whole site is now tested at laptop sizes with keyboard navigation. But his
-particular browser is still the one thing never tested here, so check it once.
+**This is no longer a risk — he has done it.** On 6 September he recorded seven
+minutes on Windows Chrome: MediaRecorder captured it, the chunks uploaded while
+he was still talking, the server assembled them, and the pipeline produced
+FLAC, Opus and a transcript. The one thing that could not be tested before
+release has now been proved with his own voice on his own machine.
 
-**Three minutes on his machine:**
+What follows is kept in case he changes machine or browser.
+
+**Three minutes on a new machine:**
 
 1. Open the address on his laptop and go to any question.
 2. The cursor should already be in the writing box. Type a sentence and watch
@@ -471,34 +475,32 @@ code never touches a word he wrote.
 make backup     # tar of data/ plus a consistent sqlite3 .backup, into backups/
 ```
 
-To run it nightly, create `~/.config/systemd/user/veillee-backup.service`:
+**It is already running.** A nightly timer is installed and enabled:
 
-```ini
-[Unit]
-Description=Veillee backup
-
-[Service]
-Type=oneshot
-WorkingDirectory=/var/home/user/Documents/vibe-code/veille-webserver
-ExecStart=/var/home/user/Documents/vibe-code/veille-webserver/scripts/backup.sh
+```
+veillee-backup.timer  →  03:30 every night (plus a few minutes of jitter)
 ```
 
-and `~/.config/systemd/user/veillee-backup.timer`:
+Verified by firing it by hand: it wrote a 109 MB archive and `/healthz` now
+reports the backup time rather than "never". It is a *user* timer and lingering
+is on for your account, so it runs whether or not you are logged in, and
+`Persistent=true` means a backup missed while the machine was asleep runs on
+the next wake rather than being skipped.
 
-```ini
-[Unit]
-Description=Nightly Veillee backup
+It keeps the **last fourteen** of each kind and prunes the rest — a nightly full
+copy of a growing audio archive would otherwise fill the disk quietly, which is
+a poor way to protect something whose whole promise is that it is never lost.
+Change `VEILLEE_BACKUP_KEEP` in the service file if you want more.
 
-[Timer]
-OnCalendar=*-*-* 03:30:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
+```bash
+systemctl --user list-timers veillee-backup.timer   # when it next runs
+systemctl --user start veillee-backup.service       # run one now
+journalctl --user -u veillee-backup.service -n 20   # what happened last time
 ```
 
-then `systemctl --user enable --now veillee-backup.timer`. `/healthz` reports the
-last successful backup.
+The unit files are at `~/.config/systemd/user/veillee-backup.{service,timer}`.
+They are not in the repository, because they carry the absolute path of this
+checkout; if you move hosts, write them again there.
 
 ---
 
