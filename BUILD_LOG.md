@@ -386,3 +386,29 @@ binding through. Now masks variables before splitting.
 
 Gate: `make verify` green twice from a fresh clone of `0957449` - 189 unit and
 integration, 64 browser, smoke passed. 253 tests.
+
+## Making `docker compose up -d` the whole story
+
+It was already containerised and running, but plain `docker compose up -d` was
+not sufficient on its own: `compose.yaml` forced `user: ${VEILLEE_RUN_AS:-0}`,
+and getting that value right needed `scripts/up.sh` to detect the runtime first.
+
+The uid question is real - rootless podman maps container root to your host
+user, so root is correct there, while rootful docker maps it to real root, where
+it would fill `data/` with root-owned files nobody can open in a file browser.
+That is the failure the whole plain-markdown design exists to prevent.
+
+Rather than making the operator configure it, the image now decides at start-up.
+`docker-entrypoint.sh` reads `/proc/self/uid_map`: an identity mapping means we
+are really root, so it drops to whoever owns the bind mount; a namespaced
+mapping means container root is already the host user, so staying root is right.
+An explicit `PUID`/`PGID` always wins on either runtime.
+
+Verified both branches against the real image: `PUID=1234` drops to uid 1234,
+and the unset case under rootless podman stays root. Then verified the whole
+thing from a directory containing nothing but `compose.yaml` - no `.env`, no
+scripts - which started both containers, answered on the port, and wrote an
+answer owned by the host user.
+
+Seven new tests, including one asserting every compose variable carries a
+default so a fresh host can boot without an env file.

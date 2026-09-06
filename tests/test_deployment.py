@@ -383,6 +383,59 @@ class TestUpScript:
         assert str(chosen) in result.stdout
 
 
+class TestPlainDockerCompose:
+    """`docker compose up -d` must be the whole story, with no setup first."""
+
+    def test_compose_never_forces_a_user(self) -> None:
+        """Forcing one is wrong on whichever runtime you did not think of.
+
+        Rootless podman maps container root to your host user, so root is
+        correct there. Rootful docker maps root to real root, where it would
+        fill data/ with root-owned files. The entrypoint decides at start-up
+        instead, so compose must not override it.
+        """
+        compose = yaml.safe_load((REPO_ROOT / "compose.yaml").read_text(encoding="utf-8"))
+        for name, service in compose["services"].items():
+            assert "user" not in service, f"{name} forces a user; the entrypoint must decide"
+
+    def test_compose_needs_no_env_file_to_start(self) -> None:
+        """Every variable must carry a default, or a fresh host cannot boot."""
+        raw = (REPO_ROOT / "compose.yaml").read_text(encoding="utf-8")
+        for match in re.finditer(r"\$\{([^}]*)\}", raw):
+            body = match.group(1)
+            assert ":-" in body, f"${{{body}}} has no default, so compose needs a .env"
+
+    def test_the_image_runs_the_entrypoint(self) -> None:
+        dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+        assert "ENTRYPOINT" in dockerfile
+        assert "docker-entrypoint.sh" in dockerfile
+
+    def test_the_entrypoint_is_committed_and_executable(self) -> None:
+        entrypoint = REPO_ROOT / "docker-entrypoint.sh"
+        assert entrypoint.exists(), "the image copies a file that is not in the repo"
+        assert entrypoint.stat().st_mode & 0o111, "entrypoint is not executable"
+
+    def test_the_entrypoint_is_valid_posix_shell(self) -> None:
+        result = subprocess.run(
+            ["sh", "-n", str(REPO_ROOT / "docker-entrypoint.sh")],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+
+    def test_an_explicit_puid_always_wins(self) -> None:
+        """The conventional PUID/PGID knob must work on any runtime."""
+        script = (REPO_ROOT / "docker-entrypoint.sh").read_text(encoding="utf-8")
+        assert 'if [ -n "${PUID:-}" ]' in script
+        assert "setpriv" in script
+
+    def test_it_detects_a_user_namespace_rather_than_asking(self) -> None:
+        script = (REPO_ROOT / "docker-entrypoint.sh").read_text(encoding="utf-8")
+        assert "/proc/self/uid_map" in script
+
+
 def test_the_dockerfile_bakes_the_transcription_model_in() -> None:
     """So the first recording of the morning is not waiting on a download."""
     dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")

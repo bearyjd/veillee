@@ -40,13 +40,16 @@ RUN mkdir -p /opt/models && \
      || echo "WARNING: could not pre-download ${WHISPER_MODEL}; jobs will queue until it can be fetched") \
     && chmod -R a+rX /opt/models
 
-# Writable by whichever uid the container is told to run as. See scripts/up.sh:
-# the correct uid differs between rootless podman and rootful docker.
-RUN mkdir -p /data && chmod 777 /data /opt/models
+# The entrypoint works out the right uid at start-up, so no configuration is
+# needed on either runtime. See docker-entrypoint.sh for why.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /data && chmod 777 /data /opt/models
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request,sys; \
         sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=4).status==200 else 1)"
 
 EXPOSE 8000
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["veillee", "serve", "--host", "0.0.0.0", "--port", "8000"]

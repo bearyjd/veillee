@@ -15,8 +15,22 @@ years by anyone with a file browser.
 ## Start it
 
 ```bash
-./scripts/up.sh                    # builds and starts app + worker, on docker or podman
-tailscale serve --bg "$(grep VEILLEE_PORT .env | cut -d= -f2)"
+docker compose up -d
+```
+
+That is the whole story. No `.env`, no scripts, no setup: every variable in
+`compose.yaml` carries a default, and the image works out at start-up which user
+it must run as so `data/` stays readable by you. Rootless podman maps container
+root to your host user; rootful docker does not, and the entrypoint detects
+which it is rather than asking you. Set `VEILLEE_PUID`/`VEILLEE_PGID` to override.
+
+`podman compose up -d` works identically. `./scripts/up.sh` is an optional
+convenience that additionally picks a free port and pins it in `.env`.
+
+Then publish it:
+
+```bash
+tailscale serve --bg 8000          # never `tailscale funnel`
 ```
 
 **Use the https address `tailscale serve` prints.** Browsers withhold the

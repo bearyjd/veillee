@@ -9,8 +9,12 @@ need it.
 
 ```bash
 cd /var/home/user/Documents/vibe-code/veille-webserver
-./scripts/up.sh
+docker compose up -d          # or: podman compose up -d
 ```
+
+That needs no `.env` and no scripts — every compose variable has a default, and
+the image works out which uid to run as by itself. `./scripts/up.sh` still works
+and additionally finds a free port for you.
 
 That builds and starts both containers and prints the URL and the port. **Use the
 port it prints.** Something unrelated on this machine already occupies 8000, so
