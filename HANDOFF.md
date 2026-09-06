@@ -90,14 +90,15 @@ plain Compose spec, so it will run unmodified on a Docker host too.
 There is no login. He opens the link and writes — that is the whole design. But
 both addresses resolve only to tailnet addresses, so **his device must be signed
 in to your tailnet or it cannot reach the site at all**. Nothing in the device
-list looks like his iPad yet.
+list looks like his laptop yet.
 
 Give him access by one of:
 
-- **Install Tailscale on his iPad** and sign it in to your tailnet. Best option:
-  nothing to remember, and it is how the security model is meant to work.
-- **Share a device** with his Apple ID from the Tailscale admin console, if you
-  do not want him in the tailnet proper.
+- **Install Tailscale on his laptop** and sign it in to your tailnet. Easiest on
+  a laptop — there are desktop clients for Windows, macOS and Linux, and once it
+  is signed in there is nothing for him to remember.
+- **Share a device** from the Tailscale admin console to whichever account he
+  signs in with, if you do not want him in the tailnet proper.
 - If neither is workable, tell me and I will set up a genuinely internet-facing
   route with `VEILLEE_PASSCODE` on and an unauthenticated request verified to be
   refused before it goes live. That is a real change of security model, so I will
@@ -184,7 +185,7 @@ a broken transcode never stops him writing.
 does real work — it drives the recorder. htmx never found an honest job: every
 page here is a full page, one click from home, with no partial-HTML swap
 anywhere. Loading it anyway would have put 51 KB of dead JavaScript on every
-page he opens on an iPad over Tailscale. The file stays vendored in
+page he opens over Tailscale. The file stays vendored in
 `static/vendor/` for phase two; the `<script>` tag is gone.
 
 **The passcode is off.** `VEILLEE_PASSCODE` in `.env` turns it on; the cookie
@@ -301,32 +302,35 @@ The remaining honest limits:
 
 ## 5. Known risks
 
-### iPad Safari — read this one
+### His browser — read this one
 
-**This is the most likely thing to be wrong this morning.** MediaRecorder was
-tested in headless Chromium with a fake microphone and works. It could not be
-tested on his actual iPad overnight. Safari's MediaRecorder support is the least
-predictable piece in the whole system.
+**He uses a laptop, not a tablet.** That is better news than the original plan:
+`MediaRecorder` is well supported by every current desktop browser, and the
+whole site is now tested at laptop sizes with keyboard navigation. But his
+particular browser is still the one thing never tested here, so check it once.
 
-**Test Path A on his device in three minutes:**
+**Three minutes on his machine:**
 
-1. Open the tailnet URL on the iPad and go to any question.
-2. If you see a large **Start recording** button, MediaRecorder is available.
-   If you instead see *"This browser won't let the page record directly"*, the
-   API is missing — skip to the workaround below; nothing is broken.
-3. Tap **Start recording**. Safari asks for microphone permission. Allow it.
-4. Talk for about ten seconds. Watch for the level meter moving and the timer
-   counting. If both move, chunks are already reaching the server.
-5. Tap **Stop recording**. Within a few seconds an audio player should appear
-   under "What you've recorded for this question". Play it back.
-6. Confirm on the host: `find data/audio -name '*.flac' | tail -1` should show a
-   new file.
+1. Open the address on his laptop and go to any question.
+2. The cursor should already be in the writing box. Type a sentence and watch
+   for **Saved 9:14am** to appear underneath.
+3. If you see a large **Start recording** button, `MediaRecorder` is available.
+   If you instead see *"Recording needs the secure https address"*, he is on a
+   plain-http address — use the https one.
+4. Press it, talk for ten seconds, watch the level meter and timer move, press
+   **Stop**. A player should appear within a few seconds. Play it back.
+5. Confirm on the host: `find data/audio -name '*.flac' | tail -1`.
 
-**If any of that fails, the morning is still fine.** On the same page, below the
-record button, is *"Or upload a recording from your phone"*. He records in Voice
-Memos, taps share, and picks the file. It runs the identical server pipeline —
-same FLAC, same Opus, same sidecar, same transcription — and it is covered by its
-own browser test using a real `.m4a`. Tell him to use that and debug Safari later.
+**Which browser matters a little:** Chrome, Edge and Firefox record without
+fuss. Safari on macOS needs a recent version and will ask for microphone
+permission each session unless he allows it permanently in Settings for that
+site. If any of it misbehaves, the **upload button below the recorder** takes a
+file recorded in any other app and runs the identical pipeline.
+
+**Keyboard, since he is on a laptop:** Escape leaves the writing box (Tab
+indents inside it, as in any rich editor), and a hint says so while he is
+typing. Every control has a visible focus ring. Tested end to end without a
+mouse.
 
 ### The others
 

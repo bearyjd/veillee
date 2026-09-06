@@ -439,3 +439,27 @@ Fixed by using `docker compose run --rm`, which does go through the entrypoint.
 The smoke test now also asserts the export is readable by the person running it,
 rather than only that the files exist - the previous check passed on a file it
 could not actually read.
+
+## He uses a laptop, not a tablet
+
+Learned late, and it changes the risk profile rather than the design. The whole
+project had been shaped around an iPad, with Safari's `MediaRecorder` named as
+the single most likely thing to be broken in the morning. On a laptop that risk
+largely evaporates: every current desktop browser records without fuss.
+
+What it raises in importance is the keyboard. The keyboard trap found earlier -
+Tab indents inside the editor rather than moving on - was fixed as an
+accessibility matter; on a laptop it is a primary path. Checked the whole
+journey without a mouse: Tab reaches the writing box, Escape leaves it and lands
+on "Next question", every control has a visible focus ring.
+
+One real improvement came out of it. Reaching the writing box took eleven Tab
+presses, which is no way to treat someone who opened the page to write. The
+cursor now starts in the box on a question he has not answered - with
+`preventScroll`, so the question itself stays on screen - and never on one that
+already has words in it, because typing into the middle of last week's answer
+would be unforgivable.
+
+Layout verified at 1280x800, 1366x768, 1440x900 and 1920x1080: 20px body text,
+no sideways scrolling, and the line length held between 400 and 900 pixels so
+text does not run the full width of a wide screen. Eleven new tests.

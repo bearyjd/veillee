@@ -143,7 +143,24 @@
     if (why && window.console) console.warn("veillee: plain editor in use —", why);
   }
 
+  /* On a question he has not answered yet, put the cursor in the box so he can
+     simply start typing. preventScroll keeps the question itself on screen -
+     landing in the box is only helpful if he can still read what he is
+     answering. Never on a question that already has words in it: that would
+     risk him typing into the middle of something he wrote last week. */
+  function focusIfBlank() {
+    if (lastSaved.trim()) return;
+    var box = frame.hidden ? fallback : frame.querySelector('[contenteditable="true"]');
+    if (!box) return;
+    try {
+      box.focus({ preventScroll: true });
+    } catch (err) {
+      box.focus();
+    }
+  }
+
   function start() {
+    focusIfBlank();
     window.setInterval(function () {
       save("interval");
     }, AUTOSAVE_MS);
