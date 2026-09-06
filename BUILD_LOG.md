@@ -480,3 +480,23 @@ was luck rather than knowledge, and it is no longer either.
 Also: a push went out having run `ruff check` rather than `make lint`, so a
 formatting drift in a test file reached CI. Verifying with a narrower command
 than the gate is exactly the failure this project keeps finding in itself.
+
+### Final gate
+
+`make verify` twice from a fresh clone of `1a63133`, and CI green on real Docker:
+
+```
+                            local (podman)        CI (docker)
+lint + format + mypy        clean                 clean
+unit and integration        210 passed            210 passed
+browser                     75 passed             75 passed
+container smoke             PASSED                PASSED
+                            RUN1=0 RUN2=0         success
+```
+
+285 tests, from 156 at the original gate. The growth is almost entirely claims
+that had been made without evidence and were later either proved or corrected:
+the toolbar that did not exist, the editor test that could not tell the two
+editors apart, git auto-commit that no test touched, the passcode, the worker
+loop, the transcripts, the shell scripts, the Docker path, and finally the
+remote backend.
