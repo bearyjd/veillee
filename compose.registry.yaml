@@ -1,0 +1,55 @@
+# Run Veillee from a published image, with no source checkout and no build.
+#
+#   docker compose -f compose.registry.yaml up -d
+#
+# This is the file to copy to a new host along with data/. Everything else -
+# the code, the model, ffmpeg - comes down inside the image.
+
+services:
+  app:
+    image: ${VEILLEE_IMAGE:-ghcr.io/<owner>/veillee:latest}
+    pull_policy: ${VEILLEE_PULL_POLICY:-always}
+    command: ["veillee", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "${VEILLEE_BIND_HOST:-127.0.0.1}:${VEILLEE_PORT:-8000}:8000"
+    volumes:
+      - ./data:/data:z
+    environment:
+      VEILLEE_DATA_DIR: /data
+      VEILLEE_DB_PATH: /data/veillee.db
+      VEILLEE_PASSCODE: "${VEILLEE_PASSCODE:-}"
+      VEILLEE_SECRET_KEY: "${VEILLEE_SECRET_KEY:-veillee-local-tailnet-only}"
+      VEILLEE_GIT_AUTOCOMMIT: "${VEILLEE_GIT_AUTOCOMMIT:-1}"
+      PUID: "${VEILLEE_PUID:-}"
+      PGID: "${VEILLEE_PGID:-}"
+    restart: unless-stopped
+
+  worker:
+    image: ${VEILLEE_IMAGE:-ghcr.io/<owner>/veillee:latest}
+    pull_policy: ${VEILLEE_PULL_POLICY:-always}
+    command: ["veillee", "worker"]
+    depends_on:
+      - app
+    volumes:
+      - ./data:/data:z
+    environment:
+      VEILLEE_DATA_DIR: /data
+      VEILLEE_DB_PATH: /data/veillee.db
+      VEILLEE_TRANSCRIPTION_BACKEND: "${VEILLEE_TRANSCRIPTION_BACKEND:-local}"
+      VEILLEE_WHISPER_MODEL: "${VEILLEE_WHISPER_MODEL:-small}"
+      VEILLEE_GIT_AUTOCOMMIT: "${VEILLEE_GIT_AUTOCOMMIT:-1}"
+      PUID: "${VEILLEE_PUID:-}"
+      PGID: "${VEILLEE_PGID:-}"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import os, sqlite3
+          sqlite3.connect(os.environ["VEILLEE_DB_PATH"], timeout=5).execute("SELECT 1")
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped

@@ -201,6 +201,52 @@ written to `.env` instead. If you set something by hand, put it there.
 
 ---
 
+## 3b. Publishing the image
+
+The image is the easy way to move hosts: the new machine pulls it instead of
+building, and nothing but `compose.registry.yaml` and `data/` needs to travel.
+
+**Where:** GitHub Container Registry, `ghcr.io`. You are already signed in to
+GitHub as `bearyjd`, it is free for both public and private images, and it has
+none of Docker Hub's pull rate limits. `.github/workflows/publish.yml` builds and
+pushes on every push to `main` and on any `v*` tag, using the built-in
+`GITHUB_TOKEN` — there is no secret to configure.
+
+```bash
+gh repo create veillee --private --source=. --remote=origin --push
+```
+
+**Make the repository private, or scrub these files first.** The *image* is
+clean — checked: no `data/`, no `.env`, no tailnet identifiers anywhere in it.
+But `HANDOFF.md` and `BUILD_LOG.md` name `<machine>.<tailnet>.ts.net`,
+`<your-proxy-hostname>`, `<tailnet-ip>` and `<proxy-tailnet-ip>`. A public repository would
+publish your tailnet topology along with the code.
+
+The combination I would use: **private repository, public package.** The source
+keeps your notes to itself; the image needs no login to pull, so a new host can
+`docker compose -f compose.registry.yaml up -d` with nothing configured. Set the
+package to public once in the GitHub UI, under the package's settings.
+
+If you would rather not use a registry at all, there are two other ways:
+
+```bash
+make relocate                    # one tarball: code + archive + compose
+podman save veillee:latest | gzip > veillee.tar.gz   # just the image, 2.1 GB
+```
+
+**On the new host:**
+
+```bash
+docker compose -f compose.registry.yaml up -d
+docker compose -f compose.registry.yaml exec app veillee reindex
+```
+
+The image is 2.1 GB, most of it the baked-in whisper model (464 MB) and the
+Python environment (456 MB). Setting `--build-arg WHISPER_MODEL=tiny` makes it
+much smaller at the cost of worse transcripts.
+
+---
+
 ## 4. What is not built
 
 **Nothing from the required scope was skipped.** All ten phases are done and

@@ -2,6 +2,7 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 UV ?= uv
+VEILLEE_IMAGE ?= ghcr.io/<owner>/veillee:latest
 RUN := $(UV) run
 
 # Docker if present, podman otherwise. Both speak the Compose spec.
@@ -9,7 +10,7 @@ COMPOSE := $(shell if command -v docker >/dev/null 2>&1 && docker info >/dev/nul
 	then echo "docker compose"; else echo "podman compose"; fi)
 
 .PHONY: help install lint fmt typecheck test e2e verify verify-fast smoke \
-        morning-check backup reindex export run worker clean browsers up down logs
+        morning-check backup reindex export run worker clean browsers up down logs relocate publish
 
 help: ## Show this help
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -49,6 +50,15 @@ smoke: ## Full-stack smoke test against real containers, from an empty data dir
 
 morning-check: ## 30 seconds: is it working right now?
 	./scripts/morning-check.sh
+
+publish: ## Build and push the image to ghcr.io (needs a registry login)
+	$(COMPOSE) build
+	podman tag veillee:latest $(VEILLEE_IMAGE)
+	podman push $(VEILLEE_IMAGE)
+	@echo "pushed $(VEILLEE_IMAGE)"
+
+relocate: ## Package everything for a move to another machine
+	./scripts/relocate.sh
 
 backup: ## Back up the index and the archive
 	./scripts/backup.sh
