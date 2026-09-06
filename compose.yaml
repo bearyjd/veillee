@@ -17,7 +17,13 @@ services:
     # onto the tailnet instead - see the note in HANDOFF.md about what that
     # costs you.
     ports:
+      # The address `tailscale serve` proxies. Loopback unless told otherwise.
       - "${VEILLEE_BIND_HOST:-127.0.0.1}:${VEILLEE_PORT:-8000}:8000"
+      # A second address for an external reverse proxy to reach. Also loopback
+      # unless told otherwise. Point this at a tailnet address only when a proxy
+      # on your tailnet needs it -- and read the warning in HANDOFF.md first,
+      # because this app has no authentication unless VEILLEE_PASSCODE is set.
+      - "${VEILLEE_PROXY_BIND:-127.0.0.1}:${VEILLEE_PROXY_PORT:-8082}:8000"
     volumes:
       - ./data:/data:z
     environment:

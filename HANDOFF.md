@@ -45,6 +45,14 @@ If you ever need to reconfigure it, the equivalent command on the host is:
 tailscale serve --bg 8002        # never `tailscale funnel`
 ```
 
+**Correction on `<your-proxy-hostname>`.** It is *not* exposed to the internet, contrary
+to what the `Public` label in the proxy UI suggests. Public DNS (checked against
+1.1.1.1 and 8.8.8.8) returns `<proxy-tailnet-ip>` and `<tailnet-ipv6>` —
+CGNAT and ULA addresses, neither routable from the internet. "Public" there means
+a publicly-signed certificate, not public reachability. Anyone can look the name
+up; only a device on your tailnet can connect to it. Both addresses below are
+equivalent in reach.
+
 **Never run `tailscale funnel`** — that publishes to the public internet.
 `serve` keeps it inside your tailnet, which is this app's entire security
 boundary. The same goes for any reverse proxy: this app has **no authentication
@@ -72,6 +80,24 @@ provider, and `up.sh` detects whichever runtime is present. `compose.yaml` is
 plain Compose spec, so it will run unmodified on a Docker host too.
 
 ---
+
+### He has to be on your tailnet
+
+There is no login. He opens the link and writes — that is the whole design. But
+both addresses resolve only to tailnet addresses, so **his device must be signed
+in to your tailnet or it cannot reach the site at all**. Nothing in the device
+list looks like his iPad yet.
+
+Give him access by one of:
+
+- **Install Tailscale on his iPad** and sign it in to your tailnet. Best option:
+  nothing to remember, and it is how the security model is meant to work.
+- **Share a device** with his Apple ID from the Tailscale admin console, if you
+  do not want him in the tailnet proper.
+- If neither is workable, tell me and I will set up a genuinely internet-facing
+  route with `VEILLEE_PASSCODE` on and an unauthenticated request verified to be
+  refused before it goes live. That is a real change of security model, so I will
+  not do it without you asking.
 
 ## 2. Is it working?
 
