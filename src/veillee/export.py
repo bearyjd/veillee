@@ -35,6 +35,7 @@ class ExportResult:
     directory: Path
     answers: int
     recordings: int
+    photographs: int
     files: int
 
 
@@ -59,7 +60,10 @@ def _markdown_book(connection: sqlite3.Connection, bank: QuestionBank) -> str:
 
 
 def _site_page(
-    connection: sqlite3.Connection, bank: QuestionBank, recordings_by_question: dict[str, list]
+    connection: sqlite3.Connection,
+    bank: QuestionBank,
+    recordings_by_question: dict[str, list],
+    photographs_by_question: dict[str, list] | None = None,
 ) -> str:
     """One self-contained HTML file. No CDN, no fonts, no network of any kind."""
     answers = {a.question_id: a for a in repository.all_written_answers(connection)}
@@ -74,6 +78,8 @@ def _site_page(
         "border-bottom:1px solid #ddd2c2;padding-bottom:.5rem}",
         "h3{margin-top:2.5rem;font-size:1.3rem}",
         "audio{width:100%;margin:1rem 0}nav a{display:block;padding:.4rem 0;color:#7a4a2b}",
+        "figure{margin:1.5rem 0}figure img{max-width:100%;height:auto;border:1px solid #ddd2c2}",
+        "figcaption{font-size:.95rem;color:#6b6055;margin-top:.5rem}",
         "p{white-space:pre-wrap}.note{color:#6b6055;font-size:.95rem}",
         "</style></head><body><main>",
         "<h1>Veillée</h1>",
@@ -81,11 +87,12 @@ def _site_page(
         "Everything here opens without an internet connection.</p>",
         "<nav>",
     ]
+    pictures = photographs_by_question or {}
     included = [
         chapter
         for chapter in bank.chapters
         if any(
-            q.id in answers or recordings_by_question.get(q.id)
+            q.id in answers or recordings_by_question.get(q.id) or pictures.get(q.id)
             for q in bank.in_chapter(chapter.slug)
         )
     ]
@@ -98,11 +105,20 @@ def _site_page(
         for question in bank.in_chapter(chapter.slug):
             answer = answers.get(question.id)
             clips = recordings_by_question.get(question.id, [])
-            if not answer and not clips:
+            shots = pictures.get(question.id, [])
+            if not answer and not clips and not shots:
                 continue
             parts.append(f"<h3>{html.escape(question.text)}</h3>")
             if answer:
                 parts.append(f"<p>{html.escape(answer.body)}</p>")
+            for shot in shots:
+                name = html.escape(f"photographs/{shot.photo_id}.jpg")
+                caption = html.escape(shot.caption)
+                parts.append(
+                    f'<figure><img src="{name}" alt="{caption or "A family photograph"}">'
+                    + (f"<figcaption>{caption}</figcaption>" if caption else "")
+                    + "</figure>"
+                )
             for clip in clips:
                 name = html.escape(f"audio/{clip.recording_id}.opus")
                 parts.append(f'<audio controls preload="none" src="{name}"></audio>')
@@ -153,6 +169,7 @@ def export(settings: Settings, destination_root: Path | None = None) -> ExportRe
     root = destination_root or Path("exports")
     directory = root / f"veillee-{datetime.now(UTC):%Y%m%d-%H%M%S}"
     (directory / "audio").mkdir(parents=True, exist_ok=True)
+    (directory / "photographs").mkdir(parents=True, exist_ok=True)
 
     bank = load_bank(settings.questions_dir, settings.custom_questions_path)
     with closing_connection(settings.db_path) as connection:
@@ -166,8 +183,16 @@ def export(settings: Settings, destination_root: Path | None = None) -> ExportRe
                 shutil.copy2(source, directory / "audio" / f"{recording.recording_id}.opus")
                 by_question.setdefault(recording.question_id, []).append(recording)
 
+        photographs = repository.all_photographs(connection)
+        pictures: dict[str, list] = {}
+        for photograph in photographs:
+            source = Path(photograph.view_path)
+            if source.exists():
+                shutil.copy2(source, directory / "photographs" / f"{photograph.photo_id}.jpg")
+                pictures.setdefault(photograph.question_id, []).append(photograph)
+
         atomic_write(directory / "veillee-book.md", _markdown_book(connection, bank))
-        atomic_write(directory / "index.html", _site_page(connection, bank, by_question))
+        atomic_write(directory / "index.html", _site_page(connection, bank, by_question, pictures))
 
     # The archive itself, copied verbatim: markdown, sidecars, transcripts.
     if settings.answers_dir.is_dir():
@@ -176,10 +201,11 @@ def export(settings: Settings, destination_root: Path | None = None) -> ExportRe
         shutil.copytree(settings.transcripts_dir, directory / "transcripts", dirs_exist_ok=True)
 
     file_count = _write_manifest(directory)
-    logger.info("exported %d files to %s", file_count, directory)
+    logger.info("exported %d files to %s (%d photographs)", file_count, directory, len(photographs))
     return ExportResult(
         directory=directory,
         answers=len(written),
         recordings=len(recordings),
+        photographs=len(photographs),
         files=file_count,
     )

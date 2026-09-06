@@ -15,6 +15,7 @@ from .db import closing_connection, initialise, set_meta
 from .models import Answer, Recording
 from .queue import STATE_DONE, enqueue
 from .storage import audio as audio_storage
+from .storage import photos as photo_storage
 from .storage.answers import iter_answer_files, read_answer
 from .storage.frontmatter import FrontmatterError
 from .storage.paths import utc_now_iso
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 class ReindexReport:
     answers: int
     recordings: int
+    photographs: int
     queued: int
     problems: tuple[str, ...]
 
@@ -97,6 +99,45 @@ def upsert_recording(connection: sqlite3.Connection, recording: Recording) -> No
     )
 
 
+def upsert_photograph(connection: sqlite3.Connection, photo: photo_storage.Photograph) -> None:
+    """Write one photograph into the index."""
+    connection.execute(
+        "INSERT INTO photographs (photo_id, question_id, created, caption, original_path, "
+        "view_path, sidecar_path, sha256_original, sha256_view, width, height) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(photo_id) DO UPDATE SET "
+        "question_id=excluded.question_id, created=excluded.created, caption=excluded.caption, "
+        "original_path=excluded.original_path, view_path=excluded.view_path, "
+        "sidecar_path=excluded.sidecar_path, sha256_original=excluded.sha256_original, "
+        "sha256_view=excluded.sha256_view, width=excluded.width, height=excluded.height",
+        (
+            photo.photo_id,
+            photo.question_id,
+            photo.created,
+            photo.caption,
+            photo.original_path,
+            photo.view_path,
+            photo.sidecar_path,
+            photo.sha256_original,
+            photo.sha256_view,
+            photo.width,
+            photo.height,
+        ),
+    )
+
+
+def _load_photographs(settings: Settings, connection: sqlite3.Connection) -> tuple[int, list[str]]:
+    count, problems = 0, []
+    for sidecar in photo_storage.iter_sidecars(settings):
+        try:
+            upsert_photograph(connection, photo_storage.read_sidecar(sidecar))
+            count += 1
+        except (OSError, ValueError, KeyError) as exc:
+            problems.append(f"could not index {sidecar}: {exc}")
+            logger.error("could not index %s: %s", sidecar, exc)
+    return count, problems
+
+
 def _load_answers(settings: Settings, connection: sqlite3.Connection) -> tuple[int, list[str]]:
     count, problems = 0, []
     for path in iter_answer_files(settings):
@@ -146,8 +187,10 @@ def reindex(settings: Settings) -> ReindexReport:
             # from what is and is not present on disk.
             connection.execute("DELETE FROM answers")
             connection.execute("DELETE FROM recordings")
+            connection.execute("DELETE FROM photographs")
             answers, answer_problems = _load_answers(settings, connection)
             recordings, queued, recording_problems = _load_recordings(settings, connection)
+            photographs, photo_problems = _load_photographs(settings, connection)
             set_meta(connection, "last_reindex", utc_now_iso())
             connection.execute("COMMIT")
         except BaseException:
@@ -157,13 +200,15 @@ def reindex(settings: Settings) -> ReindexReport:
     report = ReindexReport(
         answers=answers,
         recordings=recordings,
+        photographs=photographs,
         queued=queued,
-        problems=tuple(answer_problems + recording_problems),
+        problems=tuple(answer_problems + recording_problems + photo_problems),
     )
     logger.info(
-        "reindex complete: %d answers, %d recordings, %d queued, %d problems",
+        "reindex complete: %d answers, %d recordings, %d photographs, %d queued, %d problems",
         report.answers,
         report.recordings,
+        report.photographs,
         report.queued,
         len(report.problems),
     )

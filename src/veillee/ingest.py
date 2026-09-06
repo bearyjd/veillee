@@ -19,11 +19,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import Settings
-from .index import upsert_recording
+from .index import upsert_photograph, upsert_recording
 from .models import Recording
 from .queue import enqueue
 from .storage import audio as audio_storage
-from .storage.answers import atomic_write
+from .storage import photos as photo_storage
+from .storage.answers import atomic_write, move_to_trash
 from .storage.gitrepo import autocommit
 from .storage.paths import recording_id as build_recording_id
 from .storage.paths import revision_stamp, utc_now_iso
@@ -102,6 +103,52 @@ def ingest_recording(
     )
     logger.info("ingested %s (%.1fs, via %s)", recording_id, duration, source)
     return recording
+
+
+def ingest_photograph(
+    settings: Settings,
+    connection: sqlite3.Connection,
+    *,
+    question_id: str,
+    source_path: Path,
+    original_suffix: str,
+    caption: str = "",
+    when: datetime | None = None,
+) -> photo_storage.Photograph:
+    """Take one photograph into the archive: original kept, view copy derived."""
+    if not source_path.exists() or source_path.stat().st_size == 0:
+        raise IngestError("That photograph arrived empty. Nothing was saved.")
+
+    photo_id = build_recording_id(question_id, when or datetime.now(UTC))
+    paths = photo_storage.photo_paths(settings, photo_id, original_suffix)
+    paths["original"].parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(source_path), str(paths["original"]))
+
+    try:
+        width, height = photo_storage.make_view_copy(paths["original"], paths["view"])
+    except photo_storage.PhotoError as exc:
+        # Keep the original - he gave it to us - but do not leave a half-made
+        # record behind that the index would trip over.
+        paths["view"].unlink(missing_ok=True)
+        move_to_trash(settings, paths["original"])
+        raise IngestError(str(exc)) from exc
+
+    photo_storage.write_sidecar(
+        paths["sidecar"],
+        photo_id=photo_id,
+        question_id=question_id,
+        created=utc_now_iso(),
+        caption=caption.strip(),
+        original=paths["original"],
+        view=paths["view"],
+        width=width,
+        height=height,
+    )
+    photograph = photo_storage.read_sidecar(paths["sidecar"])
+    upsert_photograph(connection, photograph)
+    autocommit(settings.data_dir, f"photograph: {photo_id} added", enabled=settings.git_autocommit)
+    logger.info("ingested photograph %s for %s", photo_id, question_id)
+    return photograph
 
 
 def upload_dir(settings: Settings, upload_id: str) -> Path:

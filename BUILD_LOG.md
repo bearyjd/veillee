@@ -500,3 +500,35 @@ the toolbar that did not exist, the editor test that could not tell the two
 editors apart, git auto-commit that no test touched, the passcode, the worker
 loop, the transcripts, the shell scripts, the Docker path, and finally the
 remote backend.
+
+## Phase two
+
+Built on request, after he had been using the site for a day.
+
+**Photographs.** The original is kept byte for byte and a 2000px screen copy is
+derived. The detail that mattered most was EXIF orientation: a phone photograph
+of a framed print is nearly always rotated, and a viewer that ignores the tag
+would show his great-grandparents on their side. The tag is honoured and then
+discarded, with a deliberately rotated fixture proving it. Captions live in the
+sidecar and are editable at any time - they are the only part of a photograph
+that no record could ever reconstruct.
+
+**Family read-only access.** A second passcode. Enforced in middleware by method
+and path rather than by hiding controls, because a hidden button is a courtesy
+and a refused request is a guarantee. Family cannot reach `/admin` either: the
+machine transcripts are unreviewed drafts of his words and are not for them.
+
+**The printable book.** `/book`, chapter by chapter, with print rules that break
+pages sensibly and replace audio players with a line of text on paper.
+
+Three defects found while building, all by tests:
+
+- `/enter` had never learned about roles, so signing in with the family passcode
+  returned 401 instead of a read-only cookie.
+- Template surgery left an unclosed `{% if %}`, which made the question page
+  **hang** for a reader. A Jinja parse check found it in seconds; the browser
+  test had only reported a timeout.
+- The photograph section introduced a second confirmation dialog, so six
+  existing recording tests began matching the wrong one. Both dialogs now carry
+  distinct ids and the tests are scoped to their own section - a good reminder
+  that a shared class name is not a selector.

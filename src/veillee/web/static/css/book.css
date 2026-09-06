@@ -1,0 +1,82 @@
+/* The book.
+ *
+ * One page on screen, a printable book on paper. The print rules matter more
+ * than the screen ones: this is the artefact that outlives the software, and
+ * someone will print it for a funeral or a birthday without asking anyone.
+ */
+
+.book { max-width: 42rem; margin: 0 auto; }
+
+.book-title { text-align: center; margin: 2rem 0 3rem; }
+.book-title h1 { font-size: 3rem; margin: 0 0 0.5rem; }
+.book-subtitle { font-size: 1.25rem; color: var(--ink-soft); margin: 0 0 0.75rem; }
+.book-count { font-family: var(--sans); font-size: 1rem; color: var(--ink-faint); }
+
+.book-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 0 2rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 2rem;
+}
+
+.book-chapter { margin: 0 0 3rem; }
+.book-chapter > h2 {
+  font-size: 1.9rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.book-entry { margin: 0 0 2.5rem; }
+.book-entry h3 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.85rem; max-width: 32rem; }
+.book-answer { white-space: pre-wrap; max-width: var(--measure); }
+
+.book-photo { margin: 1.5rem 0; }
+.book-photo img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+}
+.book-photo figcaption {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  color: var(--ink-faint);
+  margin-top: 0.5rem;
+  max-width: var(--measure);
+}
+
+.book-recording { margin: 1rem 0; }
+.book-recording audio { width: 100%; max-width: 26rem; }
+.print-only { display: none; }
+
+@media print {
+  /* Nothing interactive survives onto paper. */
+  .masthead, .site-foot, .skip-link, .book-controls, .screen-only { display: none !important; }
+  .print-only { display: inline; }
+
+  @page { margin: 20mm 18mm; }
+
+  html, body {
+    background: #fff;
+    color: #000;
+    font-size: 11.5pt;
+    line-height: 1.5;
+  }
+  .shell { padding: 0; max-width: none; }
+  .book { max-width: none; }
+
+  .book-title { page-break-after: always; margin-top: 30%; }
+
+  /* A chapter starts on a fresh page; a question never splits across two. */
+  .book-chapter { page-break-before: always; margin: 0 0 2rem; }
+  .book-chapter:first-of-type { page-break-before: avoid; }
+  .book-entry { page-break-inside: avoid; margin-bottom: 1.5rem; }
+  .book-entry h3 { page-break-after: avoid; }
+  .book-photo { page-break-inside: avoid; }
+  .book-photo img { max-height: 15cm; }
+
+  a { color: #000; text-decoration: none; }
+}

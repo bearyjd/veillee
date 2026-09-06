@@ -248,14 +248,57 @@ much smaller at the cost of worse transcripts.
 
 ---
 
+## 3c. Phase two
+
+**Photographs.** On any question page there is *Add a photograph*. The file he
+gives us is kept byte for byte — that is the artefact — and a 2000-pixel screen
+copy is derived beside it. The EXIF orientation tag is honoured and then spent,
+because a phone photograph of a framed print is nearly always rotated and would
+otherwise show his great-grandparents on their side.
+
+The caption is the part that matters and it is editable at any time, not only at
+upload. In fifty years the picture will still be there and the only person who
+knew who was in it will not be. Captions live in the sidecar, so they survive the
+database being deleted like everything else.
+
+**A reading copy for the family.** Set `VEILLEE_FAMILY_PASSCODE` in `.env` and
+give relatives that word instead of his. They can read every answer, hear every
+recording and see every photograph. They cannot write a word, add a question,
+upload anything, or delete anything — and they cannot reach `/admin`, because the
+machine transcripts are unreviewed drafts and are not for them either.
+
+This is enforced in the middleware by method and path. Hiding the buttons is only
+a courtesy; the refused request is the guarantee, and the tests go at it over
+HTTP rather than by checking which buttons are visible.
+
+```bash
+# in .env
+VEILLEE_PASSCODE=the-word-you-give-him
+VEILLEE_FAMILY_PASSCODE=the-word-you-give-everyone-else
+```
+
+Both are off by default. Setting only the family one still requires a word from
+everybody, so set both or neither.
+
+**The book.** `/book` lays everything out in chapter order — question, answer,
+photographs, and a note where there is a recording — and prints properly. A
+chapter starts on a fresh page, a question never splits across two, and every
+interactive element is dropped on paper. Where a recording exists, print gets
+"He answered this aloud — 7 minutes, recorded 6 September 2026" rather than a
+picture of an audio player that nobody can press.
+
+Print it from the browser, or Save as PDF. The dated `veillee export` folder
+carries the photographs too, so the offline USB-stick copy is complete.
+
+---
+
 ## 4. What is not built
 
 **Nothing from the required scope was skipped.** All ten phases are done and
 gated. For completeness, the things deliberately left out:
 
-- Photographs, family read-only access, and a printable book layout. These were
-  named as phase two. Seams are clean and nothing is stubbed — there is no
-  placeholder UI, no handler returning fake data, and no commented-out test.
+- **Phase two is now built** — photographs, family read-only access and the
+  printable book. See section 3c.
 - No accounts, analytics, telemetry, or public deployment, by design.
 - The remote transcription backend now has fourteen tests, run against a real
   HTTP server speaking the OpenAI-compatible shape, so the requests it makes are

@@ -40,6 +40,7 @@ class Settings:
     db_path: Path
     questions_dir: Path
     passcode: str | None
+    family_passcode: str | None
     secret_key: str
     transcription_backend: str
     whisper_model: str
@@ -66,6 +67,10 @@ class Settings:
         return self.data_dir / "transcripts"
 
     @property
+    def photographs_dir(self) -> Path:
+        return self.data_dir / "photographs"
+
+    @property
     def revisions_dir(self) -> Path:
         return self.data_dir / ".revisions"
 
@@ -81,11 +86,17 @@ class Settings:
     def custom_questions_path(self) -> Path:
         return self.data_dir / "custom_questions.yaml"
 
+    @property
+    def transcription_hints_path(self) -> Path:
+        """Names the transcriber would otherwise get wrong. Part of the archive."""
+        return self.data_dir / "transcription-hints.txt"
+
     def ensure_dirs(self) -> None:
         for path in (
             self.answers_dir,
             self.audio_dir,
             self.transcripts_dir,
+            self.photographs_dir,
             self.revisions_dir,
             self.trash_dir,
             self.uploads_dir,
@@ -102,6 +113,7 @@ def load_settings() -> Settings:
         db_path=_env_path("VEILLEE_DB_PATH", DEFAULT_DB_PATH),
         questions_dir=_env_path("VEILLEE_QUESTIONS_DIR", Path("questions")),
         passcode=passcode,
+        family_passcode=os.environ.get("VEILLEE_FAMILY_PASSCODE") or None,
         secret_key=os.environ.get("VEILLEE_SECRET_KEY") or "veillee-local-tailnet-only",
         transcription_backend=os.environ.get("VEILLEE_TRANSCRIPTION_BACKEND", "local"),
         whisper_model=os.environ.get("VEILLEE_WHISPER_MODEL", "small"),

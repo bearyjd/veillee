@@ -99,6 +99,20 @@ mother's name wrong. Transcripts are drafts, visible only at `/admin`, marked
 "not yet reviewed". When you correct one, the machine's original wording is kept
 beside it and never overwritten.
 
+## Photographs, family reading, and the book
+
+A photograph belongs with the story. The file he uploads is kept byte for byte;
+a screen copy is derived beside it, stood upright from its EXIF tag. Captions are
+editable at any time and live in the sidecar, so they survive a reindex.
+
+`VEILLEE_FAMILY_PASSCODE` gives relatives a reading copy — every answer,
+recording and photograph, and no way to change any of it. Enforced by the
+middleware, not by hiding buttons. Transcripts stay out of their reach.
+
+`/book` is the whole archive in reading order, laid out to print: a chapter to a
+page, questions never split, and audio players replaced on paper by a line
+saying the recording exists.
+
 ## Commands
 
 ```bash
@@ -117,7 +131,8 @@ Everything has a working default and nothing is required.
 | Variable | Default | What it does |
 |---|---|---|
 | `VEILLEE_PORT` | first free from 8000 | Chosen by `up.sh` and pinned in `.env`. |
-| `VEILLEE_PASSCODE` | *(off)* | Optional single passcode; the cookie then lasts five years. |
+| `VEILLEE_PASSCODE` | *(off)* | His passcode. Full access; the cookie lasts five years. |
+| `VEILLEE_FAMILY_PASSCODE` | *(off)* | A read-only word for relatives. No writing, no transcripts. |
 | `VEILLEE_TRANSCRIPTION_BACKEND` | `local` | `local` (faster-whisper) or `remote` (OpenAI-compatible). |
 | `VEILLEE_WHISPER_MODEL` | `small` | Baked into the image at build time. |
 | `VEILLEE_GIT_AUTOCOMMIT` | `1` | Auto-commit `data/` on save. Never auto-pushes. |

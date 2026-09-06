@@ -22,7 +22,10 @@ def cmd_reindex(_: argparse.Namespace) -> int:
 
     settings = load_settings()
     report = reindex(settings)
-    print(f"Indexed {report.answers} answers and {report.recordings} recordings.")
+    print(
+        f"Indexed {report.answers} answers, {report.recordings} recordings "
+        f"and {report.photographs} photographs."
+    )
     if report.queued:
         print(f"Queued {report.queued} recording(s) for transcription.")
     for problem in report.problems:
@@ -38,7 +41,10 @@ def cmd_export(args: argparse.Namespace) -> int:
     result = export(settings, Path(args.into) if args.into else None)
     problems = verify_manifest(result.directory)
     print(f"Exported to {result.directory}")
-    print(f"  {result.answers} answers, {result.recordings} recordings, {result.files} files")
+    print(
+        f"  {result.answers} answers, {result.recordings} recordings, "
+        f"{result.photographs} photographs, {result.files} files"
+    )
     if problems:
         for problem in problems:
             print(f"  problem: {problem}", file=sys.stderr)
@@ -66,6 +72,26 @@ def cmd_verify(_: argparse.Namespace) -> int:
     for problem in problems:
         print(f"  problem: {problem}", file=sys.stderr)
     return 1 if problems else 0
+
+
+def cmd_move_recording(args: argparse.Namespace) -> int:
+    """Refile a recording under a different question."""
+    from .index import reindex
+    from .reassign import ReassignError, move_recording
+
+    settings = load_settings()
+    try:
+        result = move_recording(settings, args.recording_id, args.question_id)
+    except ReassignError as exc:
+        print(f"Nothing was moved: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"{result.old_recording_id} is now {result.new_recording_id}")
+    for line in result.moved:
+        print(f"  {line}")
+    reindex(settings)
+    print("  index rebuilt")
+    return 0
 
 
 def cmd_worker(_: argparse.Namespace) -> int:
@@ -109,6 +135,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify = subcommands.add_parser("verify", help="re-checksum every recording")
     verify.set_defaults(handler=cmd_verify)
+
+    move = subcommands.add_parser(
+        "move-recording", help="refile a recording under a different question"
+    )
+    move.add_argument("recording_id")
+    move.add_argument("question_id")
+    move.set_defaults(handler=cmd_move_recording)
 
     worker = subcommands.add_parser("worker", help="drain the transcription queue")
     worker.set_defaults(handler=cmd_worker)

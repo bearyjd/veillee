@@ -50,6 +50,21 @@ CREATE TABLE IF NOT EXISTS recordings (
 );
 CREATE INDEX IF NOT EXISTS recordings_by_question ON recordings (question_id, created);
 
+CREATE TABLE IF NOT EXISTS photographs (
+    photo_id        TEXT PRIMARY KEY,
+    question_id     TEXT NOT NULL,
+    created         TEXT NOT NULL,
+    caption         TEXT NOT NULL DEFAULT '',
+    original_path   TEXT NOT NULL,
+    view_path       TEXT NOT NULL,
+    sidecar_path    TEXT NOT NULL,
+    sha256_original TEXT NOT NULL,
+    sha256_view     TEXT NOT NULL,
+    width           INTEGER NOT NULL DEFAULT 0,
+    height          INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS photographs_by_question ON photographs (question_id, created);
+
 CREATE TABLE IF NOT EXISTS transcription_queue (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     recording_id    TEXT NOT NULL UNIQUE,

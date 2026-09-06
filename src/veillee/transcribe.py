@@ -82,10 +82,34 @@ def _load_local_model(settings: Settings) -> object:
     return _model_cache[key]
 
 
+def read_hints(settings: Settings) -> str:
+    """Family names and places, to prime the transcriber.
+
+    Whisper guesses proper nouns from context and gets surnames wrong every
+    time - "Beary" came back as "Berry" nine times out of nine. Seeding it with
+    the names that actually occur in this family fixes that, and the list lives
+    in the archive so it can be extended as more names come up.
+    """
+    path = settings.transcription_hints_path
+    if not path.exists():
+        return ""
+    lines = [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+    return ", ".join(lines)
+
+
 def transcribe_local(settings: Settings, audio_path: Path) -> Transcription:
     model = _load_local_model(settings)
+    hint = read_hints(settings)
     try:
-        segments, info = model.transcribe(str(audio_path), vad_filter=True)  # type: ignore[attr-defined]
+        segments, info = model.transcribe(  # type: ignore[attr-defined]
+            str(audio_path),
+            vad_filter=True,
+            initial_prompt=hint or None,
+        )
         collected = tuple(
             Segment(start=float(s.start), end=float(s.end), text=str(s.text).strip())
             for s in segments

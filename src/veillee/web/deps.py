@@ -44,3 +44,12 @@ def get_db(request: Request) -> Iterator[sqlite3.Connection]:
         yield connection
     finally:
         connection.close()
+
+
+def get_role(request: Request) -> str:
+    """The role this request is acting as. Writer unless a family cookie says otherwise."""
+    return str(getattr(request.state, "role", "writer"))
+
+
+def is_read_only(request: Request) -> bool:
+    return get_role(request) == "family"

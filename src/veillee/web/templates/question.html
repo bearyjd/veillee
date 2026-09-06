@@ -8,6 +8,13 @@
 <h1 class="question-text">{{ question.text }}</h1>
 {% if question.hint %}<p class="hint">{{ question.hint }}</p>{% endif %}
 
+{% if read_only %}
+{% if answer and answer.body %}
+<article class="answer-read">{{ answer.body }}</article>
+{% else %}
+<p class="lede">He has not answered this one yet.</p>
+{% endif %}
+{% else %}
 <!-- Five buttons, always visible. Milkdown's own toolbar only appears once you
      already know to select text first, which is no use to someone who does not
      know it is there. Hidden entirely if the plain-textarea fallback is in use. -->
@@ -61,8 +68,101 @@
 <ul>{% for follow_up in question.follow_ups %}<li>{{ follow_up }}</li>{% endfor %}</ul>
 {% endif %}
 
+{% endif %}
+
+<!-- ---- Photographs ---------------------------------------------------- -->
+
+<section class="photographs" x-data="veilleePhotos('{{ question.id }}')"
+         aria-labelledby="photographs-heading">
+  <h2 id="photographs-heading" style="margin-top:0">Photographs</h2>
+  <p>
+    A picture belongs with the story. Take a photograph of a print with your
+    phone and send it here — the picture you took is kept exactly as it is.
+  </p>
+
+  {% if photographs %}
+  <div class="photo-grid">
+    {% for photo in photographs %}
+    <figure class="photo" data-photo-id="{{ photo.photo_id }}">
+      <a href="/photo/{{ photo.photo_id }}/original">
+        <img src="/photo/{{ photo.photo_id }}.jpg" loading="lazy"
+             alt="{{ photo.caption or 'A photograph he added' }}">
+      </a>
+      <figcaption>
+        {% if read_only %}
+        <p class="photo-caption">{{ photo.caption }}</p>
+        {% else %}
+        <form method="post" action="/api/photo/{{ photo.photo_id }}/caption"
+              @submit.prevent="saveCaption($event, '{{ photo.photo_id }}')">
+          <label for="caption-{{ photo.photo_id }}">What is this a picture of?</label>
+          <textarea id="caption-{{ photo.photo_id }}" name="caption"
+                    rows="3">{{ photo.caption }}</textarea>
+          <div class="button-row">
+            <button class="button secondary" type="submit">Save this description</button>
+            <button type="button" class="button quiet"
+                    @click="askDelete('{{ photo.photo_id }}')">Remove this picture</button>
+          </div>
+        </form>
+        {% endif %}
+      </figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not read_only %}
+  <form id="photo-form" method="post" action="/api/photo/{{ question.id }}"
+        enctype="multipart/form-data" @submit.prevent="uploadPhoto($event)">
+    <label for="photo-file">Add a photograph</label>
+    <input type="file" id="photo-file" name="file" accept="image/*" capture>
+    <label for="photo-caption">What is it a picture of? (you can add this later)</label>
+    <textarea id="photo-caption" name="caption" rows="3"
+              placeholder="Who is in it, where it was taken, roughly when"></textarea>
+    <div class="button-row">
+      <button class="button secondary" type="submit"
+              x-text="uploading ? 'Sending…' : 'Add this photograph'">Add this photograph</button>
+    </div>
+  </form>
+
+  <p class="notice problem" role="alert" x-show="error" x-text="error" x-cloak></p>
+  {% endif %}
+
+  <div id="confirm-remove-photo" class="confirm-remove" x-show="pendingDelete" x-cloak
+       role="dialog" aria-labelledby="confirm-photo-heading">
+    <h3 id="confirm-photo-heading" style="margin-top:0">Remove this photograph?</h3>
+    <p>
+      Nothing is really lost — the files are moved to a folder called
+      <code>.trash</code> and can always be put back.
+    </p>
+    <label for="photo-delete-word">To be sure, type the word <strong>delete</strong> below</label>
+    <input type="text" id="photo-delete-word" x-model="deleteWord"
+           autocomplete="off" spellcheck="false" placeholder="delete">
+    <div class="button-row">
+      <button type="button" class="button" @click="doDelete()"
+              :disabled="deleteWord.trim().toLowerCase() !== 'delete'">Remove it</button>
+      <button type="button" class="button secondary" @click="cancelDelete()">Keep it</button>
+    </div>
+  </div>
+</section>
+
 <!-- ---- Audio. Two paths, both real. ------------------------------------ -->
 
+{% if read_only %}
+{% if recordings %}
+<section class="recorder" aria-labelledby="recording-heading">
+  <h2 id="recording-heading" style="margin-top:0">In his own voice</h2>
+  {% for recording in recordings %}
+  <div class="recording-item">
+    <audio controls preload="none" src="/audio/{{ recording.recording_id }}.opus"
+           aria-label="Recording from {{ recording.created | friendly_date }}"></audio>
+    <span class="card-note">
+      {{ recording.duration_seconds | friendly_duration }} · {{ recording.created | friendly_date }}
+    </span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+{% else %}
 <section class="recorder" x-data="veilleeRecorder('{{ question.id }}')" aria-labelledby="recording-heading">
   <h2 id="recording-heading" style="margin-top:0">Say it out loud instead</h2>
   <p>You can talk instead of typing. Press the button, say whatever you want, and press it again when you're done.</p>
@@ -142,11 +242,34 @@
       {{ recording.duration_seconds | friendly_duration }} · {{ recording.created | friendly_date }}
     </span>
     <button type="button" class="button quiet delete-recording"
-            @click="confirmDelete('{{ recording.recording_id }}')">Remove this</button>
+            @click="askDelete('{{ recording.recording_id }}')">Remove this</button>
   </div>
   {% endfor %}
+
+  <!-- Removing something needs the word typed, but the word is shown right
+       here so it is a copying task, not a memory test. A browser prompt was
+       the first attempt and he could not get past it. -->
+  <div id="confirm-remove-recording" class="confirm-remove" x-show="pendingDelete" x-cloak
+       role="dialog" aria-labelledby="confirm-remove-heading">
+    <h3 id="confirm-remove-heading" style="margin-top:0">Remove this recording?</h3>
+    <p>
+      Nothing is really lost — the files are moved to a folder called
+      <code>.trash</code> and can always be put back.
+    </p>
+    <label for="delete-word">To be sure, type the word <strong>delete</strong> below</label>
+    <input type="text" id="delete-word" x-model="deleteWord"
+           autocomplete="off" spellcheck="false" placeholder="delete"
+           @keydown.enter.prevent="doDelete()">
+    <p class="notice problem" x-show="deleteError" x-text="deleteError" x-cloak></p>
+    <div class="button-row">
+      <button type="button" class="button" @click="doDelete()"
+              :disabled="deleteWord.trim().toLowerCase() !== 'delete'">Remove it</button>
+      <button type="button" class="button secondary" @click="cancelDelete()">Keep it</button>
+    </div>
+  </div>
   {% endif %}
 </section>
+{% endif %}
 
 {% endblock %}
 
@@ -154,4 +277,5 @@
 <script src="/static/vendor/editor.js"></script>
 <script src="/static/js/editor-boot.js"></script>
 <script src="/static/js/recorder.js"></script>
+<script src="/static/js/photos.js"></script>
 {% endblock %}

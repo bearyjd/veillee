@@ -15,7 +15,15 @@ from ..db import initialise
 from ..index import reindex
 from ..questions import load_bank
 from ..storage.gitrepo import ensure_repo
-from . import auth, routes_admin, routes_answers, routes_audio, routes_health, routes_pages
+from . import (
+    auth,
+    routes_admin,
+    routes_answers,
+    routes_audio,
+    routes_health,
+    routes_pages,
+    routes_photos,
+)
 from .deps import AppState
 from .templating import STATIC_DIR, build_templates
 
@@ -65,10 +73,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def passcode_gate(request: Request, call_next):  # type: ignore[no-untyped-def]
         state = getattr(request.app.state, "veillee", None)
         active = state.settings if state else resolved
+
         if not auth.is_authorised(request, active):
             if request.url.path.startswith("/api/"):
                 return JSONResponse({"detail": "Not signed in"}, status_code=401)
             return auth.redirect_to_entry(request)
+
+        role = auth.role_from_cookie(request, active) or auth.ROLE_WRITER
+        request.state.role = role
+
+        # Read-only is enforced here, by method and path. Hiding the buttons in
+        # the templates is a courtesy; this is the rule.
+        if role == auth.ROLE_FAMILY and not auth.is_open_path(request.url.path):
+            if not auth.family_may(request):
+                if request.url.path.startswith("/api/"):
+                    return JSONResponse(
+                        {"detail": "This account can read but not change anything"},
+                        status_code=403,
+                    )
+                return templates.TemplateResponse(request, "read_only.html", {}, status_code=403)
         return await call_next(request)
 
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -76,6 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_pages.router)
     app.include_router(routes_answers.router)
     app.include_router(routes_audio.router)
+    app.include_router(routes_photos.router)
     app.include_router(routes_admin.router)
 
     @app.exception_handler(404)

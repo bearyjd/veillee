@@ -39,6 +39,7 @@
   <a class="button secondary" href="/answers">Everything you've answered</a>
 </div>
 
+{% if not read_only %}
 <h2>Ask your own question</h2>
 <p>If there is something you want to talk about that nobody thought to ask, put it here.</p>
 <form method="post" action="/questions/new" class="stack">
@@ -49,5 +50,6 @@
     <button class="button secondary" type="submit">Add it</button>
   </div>
 </form>
+{% endif %}
 
 {% endblock %}

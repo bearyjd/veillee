@@ -473,3 +473,75 @@ footer.site-foot {
 }
 
 [x-cloak] { display: none !important; }
+
+/* Removing a recording. Shown in the page rather than in a browser prompt,
+   which he could not get past. */
+.confirm-remove {
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  padding: 1.5rem;
+  margin: 1.5rem 0 0;
+}
+.confirm-remove[x-cloak] { display: none !important; }
+.confirm-remove label { display: block; margin-bottom: 0.6rem; font-size: 1.05rem; }
+.confirm-remove input[type="text"] { max-width: 16rem; }
+.confirm-remove .button-row { margin-bottom: 0; }
+.confirm-remove button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- photographs ------------------------------------------------------ */
+
+.photographs {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+.photo-grid { display: grid; gap: 2rem; margin: 0 0 2rem; }
+.photo { margin: 0; }
+.photo img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+.photo figcaption { margin-top: 0.85rem; }
+.photo figcaption label,
+.photographs > form label {
+  display: block;
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin: 1rem 0 0.5rem;
+}
+.photographs textarea {
+  width: 100%;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* A reader should be able to tell at a glance which copy they are looking at. */
+.reading-copy {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  color: var(--ink-faint);
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+}
+.answer-read {
+  white-space: pre-wrap;
+  font-size: var(--body-size);
+  line-height: var(--line);
+  max-width: var(--measure);
+  margin: 0 0 2rem;
+}
+.photo-caption { font-size: 1.05rem; color: var(--ink-soft); margin: 0.5rem 0 0; }

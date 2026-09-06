@@ -20,6 +20,7 @@ PAGE_TEMPLATES = [
     ("answers.html", "/answers"),
     ("admin.html", "/admin"),
     ("404.html", "/no-such-page"),
+    ("book.html", "/book"),
 ]
 
 RUN_AXE = """
@@ -124,3 +125,57 @@ def test_every_page_has_a_skip_link_and_a_main_landmark(
 def test_the_axe_bundle_is_vendored_not_fetched() -> None:
     """The suite must run with the host offline, like the app itself."""
     assert (FIXTURES / "axe.min.js").exists()
+
+
+def test_the_book_is_accessible_with_content_in_it(
+    browser: object, live_server: LiveServer, axe_source: str, sample_photo
+) -> None:
+    """An empty book exercises none of the markup that matters."""
+    import httpx
+
+    httpx.post(
+        live_server.url("/api/answer/q012"),
+        json={"body": "Bread, mostly. And the turf smoke."},
+        timeout=30,
+    ).raise_for_status()
+    with sample_photo.open("rb") as handle:
+        httpx.post(
+            live_server.url("/api/photo/q012"),
+            files={"file": ("p.jpg", handle, "image/jpeg")},
+            data={"caption": "Michael and Sarah at Weller"},
+            timeout=120,
+        ).raise_for_status()
+
+    context = browser.new_context()  # type: ignore[attr-defined]
+    page = context.new_page()
+    page.goto(live_server.url("/book"), wait_until="load")
+    page.wait_for_timeout(800)
+    violations = _audit(page, axe_source)
+    context.close()
+
+    blocking = [v for v in violations if v["impact"] in ("critical", "serious")]
+    assert not blocking, f"the book has violations:\n{_describe(blocking)}"
+
+
+def test_a_photograph_carries_alternative_text(
+    browser: object, live_server: LiveServer, sample_photo
+) -> None:
+    """A caption is also the alt text. A picture with neither is a dead end."""
+    import httpx
+
+    with sample_photo.open("rb") as handle:
+        httpx.post(
+            live_server.url("/api/photo/q012"),
+            files={"file": ("p.jpg", handle, "image/jpeg")},
+            data={"caption": "Michael and Sarah at Weller, about 1905"},
+            timeout=120,
+        ).raise_for_status()
+
+    context = browser.new_context()  # type: ignore[attr-defined]
+    page = context.new_page()
+    page.goto(live_server.url("/question/q012"), wait_until="load")
+    page.wait_for_timeout(600)
+    alt = page.get_attribute(".photo img", "alt")
+    context.close()
+
+    assert alt == "Michael and Sarah at Weller, about 1905"

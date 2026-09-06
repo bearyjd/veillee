@@ -194,5 +194,11 @@ def test_the_committed_test_fixtures_are_present() -> None:
     """A missing fixture must fail the build, never silently skip a test."""
     from tests.conftest import FIXTURES
 
-    for name in ("sample.wav", "sample.m4a", "axe.min.js"):
+    for name in (
+        "sample.wav",
+        "sample.m4a",
+        "axe.min.js",
+        "sample-photo.jpg",
+        "sample-photo-rotated.jpg",
+    ):
         assert (FIXTURES / name).exists(), f"{name} is not committed"

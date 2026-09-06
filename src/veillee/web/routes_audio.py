@@ -245,14 +245,21 @@ async def delete_recording(
     if recording is None:
         raise HTTPException(status_code=404, detail="No such recording")
 
+    doomed = [
+        Path(recording.original_path),
+        Path(recording.flac_path),
+        Path(recording.opus_path),
+        Path(recording.sidecar_path),
+    ]
+    # The transcript is derived from the audio, so it goes with it. Leaving it
+    # behind orphans a machine draft of a recording that no longer exists.
+    transcripts = audio_storage.transcript_paths(settings, recording_id)
+    doomed.extend(transcripts.values())
+    doomed.append(transcripts["markdown"].with_suffix(".machine.md"))
+
     moved = []
-    for path_text in (
-        recording.original_path,
-        recording.flac_path,
-        recording.opus_path,
-        recording.sidecar_path,
-    ):
-        destination = move_to_trash(settings, Path(path_text))
+    for path in doomed:
+        destination = move_to_trash(settings, path)
         if destination:
             moved.append(str(destination))
 

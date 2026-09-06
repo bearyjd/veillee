@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .models import STATUS_ANSWERED, STATUS_LATER, Answer, Question, Recording
 from .questions import QuestionBank
+from .storage.photos import Photograph
 
 
 @dataclass(frozen=True)
@@ -147,6 +148,13 @@ def continue_where_left_off(
     connection: sqlite3.Connection, bank: QuestionBank
 ) -> tuple[Question | None, str]:
     """The question to offer first, and why we are offering it."""
+    # Anything the family has pinned comes before everything else, until he has
+    # answered it. This is how someone asks him a particular question.
+    answered = answered_ids(connection)
+    for pinned in bank.questions:
+        if pinned.pinned and pinned.id not in answered:
+            return pinned, pinned.note or "A question from your family"
+
     later = connection.execute(
         "SELECT question_id FROM answers WHERE status = ? ORDER BY updated DESC LIMIT 1",
         (STATUS_LATER,),
@@ -211,3 +219,44 @@ def all_recordings(connection: sqlite3.Connection) -> list[Recording]:
 def delete_recording_row(connection: sqlite3.Connection, recording_id: str) -> None:
     connection.execute("DELETE FROM recordings WHERE recording_id = ?", (recording_id,))
     connection.execute("DELETE FROM transcription_queue WHERE recording_id = ?", (recording_id,))
+
+
+def _row_to_photograph(row: sqlite3.Row) -> Photograph:
+    return Photograph(
+        photo_id=str(row["photo_id"]),
+        question_id=str(row["question_id"]),
+        created=str(row["created"]),
+        caption=str(row["caption"]),
+        original_path=str(row["original_path"]),
+        view_path=str(row["view_path"]),
+        sidecar_path=str(row["sidecar_path"]),
+        sha256_original=str(row["sha256_original"]),
+        sha256_view=str(row["sha256_view"]),
+        width=int(row["width"]),
+        height=int(row["height"]),
+    )
+
+
+def photographs_for(connection: sqlite3.Connection, question_id: str) -> list[Photograph]:
+    rows = connection.execute(
+        "SELECT * FROM photographs WHERE question_id = ? ORDER BY created", (question_id,)
+    ).fetchall()
+    return [_row_to_photograph(row) for row in rows]
+
+
+def get_photograph(connection: sqlite3.Connection, photo_id: str) -> Photograph | None:
+    row = connection.execute("SELECT * FROM photographs WHERE photo_id = ?", (photo_id,)).fetchone()
+    return _row_to_photograph(row) if row else None
+
+
+def all_photographs(connection: sqlite3.Connection) -> list[Photograph]:
+    rows = connection.execute("SELECT * FROM photographs ORDER BY question_id, created").fetchall()
+    return [_row_to_photograph(row) for row in rows]
+
+
+def delete_photograph_row(connection: sqlite3.Connection, photo_id: str) -> None:
+    connection.execute("DELETE FROM photographs WHERE photo_id = ?", (photo_id,))
+
+
+def photograph_count(connection: sqlite3.Connection) -> int:
+    return int(connection.execute("SELECT COUNT(*) AS n FROM photographs").fetchone()["n"])

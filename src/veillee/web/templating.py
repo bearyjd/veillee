@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -43,9 +44,19 @@ def friendly_duration(seconds: float) -> str:
 
 
 def build_templates() -> Jinja2Templates:
-    templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+    templates = Jinja2Templates(directory=str(TEMPLATE_DIR), context_processors=[role_context])
     templates.env.filters["friendly_time"] = friendly_time
     templates.env.filters["friendly_date"] = friendly_date
     templates.env.filters["friendly_duration"] = friendly_duration
     templates.env.globals["site_name"] = "Veillée"
     return templates
+
+
+def role_context(request: Request) -> dict[str, object]:
+    """Give every template the viewer's role, so write controls can be hidden.
+
+    Hiding them is only a courtesy - the middleware refuses the request anyway -
+    but showing a reader a Save button he cannot use is its own small unkindness.
+    """
+    role = str(getattr(request.state, "role", "writer"))
+    return {"role": role, "read_only": role == "family"}

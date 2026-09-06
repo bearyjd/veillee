@@ -101,6 +101,7 @@ def question_page(
             "question": question,
             "answer": answer,
             "recordings": repository.recordings_for(connection, question_id),
+            "photographs": repository.photographs_for(connection, question_id),
             "next_question": _next_question(bank, question_id),
         },
     )
@@ -145,11 +146,59 @@ def answers_page(
     )
 
 
+@router.get("/book", response_class=HTMLResponse)
+def book(
+    request: Request,
+    connection: sqlite3.Connection = Depends(get_db),
+    bank: QuestionBank = Depends(get_bank),
+) -> HTMLResponse:
+    """Everything he has written, in reading order, laid out to be printed.
+
+    One page, chapter by chapter, with the photographs in place and a note
+    where there is a recording. Print it and you have the book.
+    """
+    answers = {a.question_id: a for a in repository.all_written_answers(connection)}
+    photographs: dict[str, list] = {}
+    for photo in repository.all_photographs(connection):
+        photographs.setdefault(photo.question_id, []).append(photo)
+    recordings: dict[str, list] = {}
+    for recording in repository.all_recordings(connection):
+        recordings.setdefault(recording.question_id, []).append(recording)
+
+    chapters = []
+    for chapter in bank.chapters:
+        entries = []
+        for question in bank.in_chapter(chapter.slug):
+            answer = answers.get(question.id)
+            pictures = photographs.get(question.id, [])
+            spoken = recordings.get(question.id, [])
+            if answer or pictures or spoken:
+                entries.append(
+                    {
+                        "question": question,
+                        "answer": answer,
+                        "photographs": pictures,
+                        "recordings": spoken,
+                    }
+                )
+        if entries:
+            chapters.append({"chapter": chapter, "entries": entries})
+
+    return templates.TemplateResponse(
+        request,
+        "book.html",
+        {
+            "chapters": chapters,
+            "progress": repository.progress(connection, bank),
+        },
+    )
+
+
 @router.get("/enter", response_class=HTMLResponse, response_model=None)
 def enter_form(
     request: Request, settings: Settings = Depends(get_settings)
 ) -> HTMLResponse | RedirectResponse:
-    if not settings.passcode:
+    if not auth.passcodes_enabled(settings):
         return RedirectResponse("/", status_code=303)
     next_path = request.query_params.get("next", "/")
     return templates.TemplateResponse(
@@ -164,7 +213,8 @@ def enter_submit(
     next_path: str = Form("/"),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse | RedirectResponse:
-    if not auth.passcode_matches(passcode, settings):
+    role = auth.role_for_passcode(passcode, settings)
+    if role is None:
         return templates.TemplateResponse(
             request,
             "enter.html",
@@ -173,5 +223,5 @@ def enter_submit(
         )
     safe_next = next_path if next_path.startswith("/") and "//" not in next_path else "/"
     response = RedirectResponse(safe_next, status_code=303)
-    auth.issue_cookie(response, settings)
+    auth.issue_cookie(response, settings, role)
     return response

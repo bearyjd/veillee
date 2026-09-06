@@ -50,8 +50,9 @@ def healthz(
         last_backup = get_meta(connection, "last_backup", "never")
         answers = connection.execute("SELECT COUNT(*) AS n FROM answers").fetchone()["n"]
         recordings = connection.execute("SELECT COUNT(*) AS n FROM recordings").fetchone()["n"]
+        photographs = connection.execute("SELECT COUNT(*) AS n FROM photographs").fetchone()["n"]
     except sqlite3.Error as exc:
-        depth, last_backup, answers, recordings = {}, "unknown", -1, -1
+        depth, last_backup, answers, recordings, photographs = {}, "unknown", -1, -1, -1
         problems.append(f"index unreadable, run `veillee reindex`: {exc}")
 
     git = last_status()
@@ -71,6 +72,7 @@ def healthz(
             "counts": {
                 "answers": answers,
                 "recordings": recordings,
+                "photographs": photographs,
                 "questions": len(bank.questions),
             },
             "data_dir": str(settings.data_dir.resolve()),

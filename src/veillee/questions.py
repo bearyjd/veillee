@@ -77,6 +77,8 @@ def _parse_question(raw: Any, chapter: Chapter, *, custom: bool, source: Path) -
         hint=str(raw["hint"]).strip() if raw.get("hint") else None,
         follow_ups=tuple(str(item).strip() for item in follow_ups),
         custom=custom,
+        pinned=bool(raw.get("pinned", False)),
+        note=str(raw["note"]).strip() if raw.get("note") else None,
     )
 
 
@@ -129,13 +131,29 @@ def load_custom_questions(path: Path) -> list[Question]:
     return [_parse_question(item, chapter, custom=True, source=path) for item in raw_questions]
 
 
-def append_custom_question(path: Path, question_id: str, text: str) -> None:
-    """Add one of his own questions to the archive file, atomically."""
-    existing: list[dict[str, str]] = []
+def append_custom_question(
+    path: Path,
+    question_id: str,
+    text: str,
+    *,
+    pinned: bool = False,
+    note: str | None = None,
+) -> None:
+    """Add a question to the archive file, atomically.
+
+    `pinned` puts it at the top of the home page until he has answered it, which
+    is how someone in the family asks him something specific.
+    """
+    existing: list[dict[str, object]] = []
     if path.exists():
         document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         existing = list(document.get("questions") or [])
-    existing.append({"id": question_id, "text": text})
+    entry: dict[str, object] = {"id": question_id, "text": text}
+    if pinned:
+        entry["pinned"] = True
+    if note:
+        entry["note"] = note
+    existing.append(entry)
     payload = yaml.safe_dump(
         {"questions": existing}, sort_keys=False, allow_unicode=True, default_flow_style=False
     )

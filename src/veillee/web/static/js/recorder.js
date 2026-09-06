@@ -20,6 +20,9 @@ window.veilleeRecorder = function (questionId) {
     level: 0,
     error: "",
     done: false,
+    pendingDelete: "",
+    deleteWord: "",
+    deleteError: "",
 
     // Not reactive state; just handles we need to hang on to.
     _recorder: null,
@@ -260,18 +263,34 @@ window.veilleeRecorder = function (questionId) {
       }
     },
 
-    confirmDelete: async function (recordingId) {
-      var typed = window.prompt(
-        "This removes the recording from the page. Type the word delete to confirm."
-      );
-      if (typed === null) return;
+    askDelete: function (recordingId) {
+      this.pendingDelete = recordingId;
+      this.deleteWord = "";
+      this.deleteError = "";
+      this.$nextTick(function () {
+        var field = document.getElementById("delete-word");
+        if (field) field.focus();
+      });
+    },
+
+    cancelDelete: function () {
+      this.pendingDelete = "";
+      this.deleteWord = "";
+      this.deleteError = "";
+    },
+
+    doDelete: async function () {
+      if (this.deleteWord.trim().toLowerCase() !== "delete") {
+        this.deleteError = "Type the word delete to remove it, or press Keep it.";
+        return;
+      }
       try {
         var response = await fetch(
-          "/api/recording/" + encodeURIComponent(recordingId) + "/delete",
+          "/api/recording/" + encodeURIComponent(this.pendingDelete) + "/delete",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ confirm: typed }),
+            body: JSON.stringify({ confirm: this.deleteWord.trim().toLowerCase() }),
           }
         );
         if (!response.ok) {
@@ -282,7 +301,7 @@ window.veilleeRecorder = function (questionId) {
         }
         window.location.reload();
       } catch (err) {
-        this.error = err.message;
+        this.deleteError = err.message;
       }
     },
   };

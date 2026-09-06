@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}The book — {{ site_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/book.css" media="all">{% endblock %}
+
+{% block content %}
+<div class="book">
+
+  <header class="book-title">
+    <h1>Veillée</h1>
+    <p class="book-subtitle">An oral history, in his own words</p>
+    <p class="book-count">
+      {{ progress.answered }} question{{ '' if progress.answered == 1 else 's' }} answered ·
+      {{ "{:,}".format(progress.words) }} words{% if progress.recordings %} ·
+      {{ progress.recordings }} recording{{ '' if progress.recordings == 1 else 's' }}{% endif %}
+    </p>
+  </header>
+
+  <div class="book-controls">
+    <button type="button" class="button" onclick="window.print()">Print this</button>
+    <span class="card-note">Or use your browser's print command and choose Save as PDF.</span>
+  </div>
+
+  {% if not chapters %}
+  <p class="lede">Nothing has been written yet. The book fills itself as he answers.</p>
+  {% endif %}
+
+  {% for part in chapters %}
+  <section class="book-chapter">
+    <h2>{{ part.chapter.title }}</h2>
+
+    {% for entry in part.entries %}
+    <article class="book-entry">
+      <h3>{{ entry.question.text }}</h3>
+
+      {% if entry.answer and entry.answer.body %}
+      <div class="book-answer">{{ entry.answer.body }}</div>
+      {% endif %}
+
+      {% for photo in entry.photographs %}
+      <figure class="book-photo">
+        <img src="/photo/{{ photo.photo_id }}.jpg" alt="{{ photo.caption or 'A family photograph' }}">
+        {% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}
+      </figure>
+      {% endfor %}
+
+      {% for recording in entry.recordings %}
+      <p class="book-recording">
+        <span class="print-only">He answered this aloud — {{ recording.duration_seconds | friendly_duration }},
+          recorded {{ recording.created | friendly_date }}.</span>
+        <span class="screen-only">
+          <audio controls preload="none" src="/audio/{{ recording.recording_id }}.opus"
+                 aria-label="Recording from {{ recording.created | friendly_date }}"></audio>
+        </span>
+      </p>
+      {% endfor %}
+    </article>
+    {% endfor %}
+  </section>
+  {% endfor %}
+
+</div>
+{% endblock %}

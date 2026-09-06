@@ -32,6 +32,10 @@ class Question:
     hint: str | None = None
     follow_ups: tuple[str, ...] = ()
     custom: bool = False
+    # A question someone in the family has put in front of him. Offered first on
+    # the home page until he has answered it.
+    pinned: bool = False
+    note: str | None = None
 
     @property
     def chapter(self) -> Chapter:

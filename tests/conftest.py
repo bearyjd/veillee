@@ -77,6 +77,16 @@ def sample_m4a() -> Path:
     return _require_fixture("sample.m4a")
 
 
+@pytest.fixture
+def sample_photo() -> Path:
+    return _require_fixture("sample-photo.jpg")
+
+
+@pytest.fixture
+def sample_photo_rotated() -> Path:
+    return _require_fixture("sample-photo-rotated.jpg")
+
+
 def _require_fixture(name: str) -> Path:
     """Fail rather than skip.
 
@@ -172,3 +182,16 @@ def live_server_with_passcode(tmp_path: Path) -> Iterator[LiveServer]:
 def live_server_with_git(tmp_path: Path) -> Iterator[LiveServer]:
     """A real server with data/ auto-commit on, so the promise is exercised."""
     yield from _start_server(tmp_path, {"VEILLEE_GIT_AUTOCOMMIT": "1"})
+
+
+@pytest.fixture
+def live_server_with_family(tmp_path: Path) -> Iterator[LiveServer]:
+    """Both passcodes on: his, and a read-only one for relatives."""
+    yield from _start_server(
+        tmp_path,
+        {
+            "VEILLEE_PASSCODE": "seanchai",
+            "VEILLEE_FAMILY_PASSCODE": "cousins",
+            "VEILLEE_SECRET_KEY": "test-key-not-a-secret",
+        },
+    )
