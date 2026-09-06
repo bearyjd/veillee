@@ -22,3 +22,6 @@ backups/
 
 # Editor/agent tooling state, not part of the project.
 .omc/
+
+# Host-specific notes; contains tailnet addresses.
+LOCAL.md
