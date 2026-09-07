@@ -33,8 +33,16 @@ window.veilleeRecorder = function (questionId) {
     _pending: [],
     _timer: null,
     _meter: null,
+    _wakeLock: null,
 
     init: function () {
+      /* An Android phone locks its screen after a minute of no touching, and a
+         locked screen can suspend the page and take the recording with it -
+         while he is still talking into it, believing it is being kept. So the
+         screen is held awake for exactly as long as he is recording and not a
+         second longer. Every part of this is optional: a browser without the
+         API records exactly as it does today. */
+      this._watchVisibility();
       this.supported =
         typeof MediaRecorder !== "undefined" &&
         !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -88,11 +96,13 @@ window.veilleeRecorder = function (questionId) {
       this._recorder.ondataavailable = this._onChunk.bind(this);
       this._recorder.onerror = function () {
         this.error = "The recording stopped unexpectedly. Whatever arrived has been kept.";
+        this._releaseScreen();
       }.bind(this);
       this._recorder.start(CHUNK_MS);
 
       this.recording = true;
       this.paused = false;
+      this._holdScreenAwake();
       this._startMeter();
       this._timer = window.setInterval(
         function () {
@@ -109,11 +119,13 @@ window.veilleeRecorder = function (questionId) {
       if (this.paused) {
         this._recorder.resume();
         this.paused = false;
+        this._holdScreenAwake();
         this._startMeter();
       } else {
         this._recorder.pause();
         this.paused = true;
         this.level = 0;
+        this._releaseScreen();
       }
     },
 
@@ -208,7 +220,62 @@ window.veilleeRecorder = function (questionId) {
       }
     },
 
+    /* Asked for, never waited on. If the browser has no wakeLock, or refuses,
+       or throws, the recording carries on exactly as it would have: the screen
+       going dark is a smaller loss than a button that would not start. */
+    _holdScreenAwake: function () {
+      if (!("wakeLock" in navigator)) return;
+      /* One at a time. The browser marks a lock `released` when it drops it on
+         the page being hidden, and that is the only case worth asking again. */
+      if (this._wakeLock && !this._wakeLock.released) return;
+      try {
+        navigator.wakeLock
+          .request("screen")
+          .then(
+            function (lock) {
+              /* He may have stopped in the time the request took. Handing back
+                 a lock nobody wants any more would hold the screen on all
+                 evening. */
+              if (this.recording && !this.paused) {
+                this._wakeLock = lock;
+              } else {
+                lock.release().catch(function () {});
+              }
+            }.bind(this)
+          )
+          .catch(function () {});
+      } catch (err) {
+        // Nothing to do and nothing to say: this was never load-bearing.
+      }
+    },
+
+    _releaseScreen: function () {
+      var lock = this._wakeLock;
+      this._wakeLock = null;
+      if (!lock) return;
+      try {
+        lock.release().catch(function () {});
+      } catch (err) {
+        // Already gone, which is the outcome we wanted anyway.
+      }
+    },
+
+    /* A wake lock is dropped by the browser whenever the page is hidden, and is
+       not given back on its own. He switches to look something up, comes back,
+       and without this the screen would be free to lock mid-story. */
+    _watchVisibility: function () {
+      document.addEventListener(
+        "visibilitychange",
+        function () {
+          if (document.visibilityState !== "visible") return;
+          if (!this.recording || this.paused) return;
+          this._holdScreenAwake();
+        }.bind(this)
+      );
+    },
+
     _release: function () {
+      this._releaseScreen();
       if (this._timer) window.clearInterval(this._timer);
       if (this._meter) window.cancelAnimationFrame(this._meter);
       this._timer = null;

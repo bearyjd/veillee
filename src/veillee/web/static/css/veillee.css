@@ -472,6 +472,48 @@ footer.site-foot {
   .button-row .button { flex: 1 1 100%; }
 }
 
+/* The 56px promise, asked of the hand rather than of the window.
+ *
+ * `pointer: coarse` is true of a finger and false of a mouse, so these rules
+ * follow him onto a phone and stay off his laptop - and, unlike a width, they
+ * do not quietly lapse the moment he turns the phone sideways to read. A
+ * landscape phone is 851px wide, far outside any narrow-screen breakpoint,
+ * while his thumb is exactly the same size it was a second earlier.
+ *
+ * The width clause is kept beside it so a narrow window on a desktop still
+ * gets the roomier controls.
+ */
+@media (pointer: coarse), (max-width: 32rem) {
+  /* Quiet is a matter of how a button looks - transparent, underlined, the
+     colour of the text around it - and never a matter of it being smaller.
+     A thumb does not know which buttons the design considers minor. */
+  .button.quiet { min-height: var(--touch); }
+  .editor-toolbar button { min-height: var(--touch); }
+
+  /* Choosing a photograph or a voice memo is the one step that leaves the page
+     for the phone's own screens. It should not be the smallest thing on it. */
+  input[type="file"] { min-height: var(--touch); }
+
+  /* The scrub bar is dragged, not tapped, which is harder than tapping. Giving
+     it the same height as everything else is what makes it possible to move to
+     the middle of a recording with a thumb instead of guessing. */
+  .recording-item audio { height: var(--touch); }
+}
+
+/* The phone laid flat on a table. There are only a few hundred pixels of height
+   left, so the vertical spacing that gives the page its calm on a tall screen
+   becomes a long scroll between him and the record button. Tightened just
+   enough to bring it back within reach; nothing else changes. */
+@media (max-height: 30rem) and (orientation: landscape) {
+  .shell { padding: 0.75rem 1rem 2.5rem; }
+  .masthead { padding: 0.5rem 0 0.75rem; margin-bottom: 1rem; }
+  h2 { margin-top: 1.25rem; }
+  .question-text { margin-bottom: 0.5rem; }
+  .hint { margin-bottom: 1rem; }
+  .recorder, .photographs { margin: 1rem 0; padding: 1rem; }
+  .button-row { margin: 1rem 0; }
+}
+
 [x-cloak] { display: none !important; }
 
 /* Removing a recording. Shown in the page rather than in a browser prompt,
