@@ -577,3 +577,99 @@ real defects on the way. A reader would have believed the pessimistic half.
 Also corrected: the archive is no longer empty (two answers, a seven-minute
 recording, two photographs); his browser is no longer untested, because he
 recorded seven minutes on Windows Chrome; and his laptop is on the tailnet.
+
+## The phone, and three ways of verifying the wrong thing
+
+He is going onto a phone so he can record when something occurs to him rather
+than when he next sits at a laptop. The audit of what that would need came back
+honest: the code was written with a phone in mind - format fallbacks, `capture`
+attributes on the file inputs, a graceful path when `MediaRecorder` is missing -
+and **nothing in the repository had ever confirmed any of it**. Every test runs
+headless Chromium at laptop widths. Nobody had opened it on a phone.
+
+Three real defects, all found by measuring rather than reading.
+
+**The screen slept mid-story.** Android locks after a minute untouched, and a
+locked screen can suspend the page and take the recording with it - while he is
+still talking into it, believing it is being kept. A wake lock now covers
+exactly the span of a recording.
+
+**The 56px touch promise lapsed when he turned the phone sideways.** The rules
+hung on `max-width: 32rem`, which is 512px; a phone in landscape is 851px. Every
+target silently reverted to 44 or 48px on rotation - correct in portrait, wrong
+in landscape, and invisible either way because nothing tested it. They hang on
+`pointer: coarse` now, which asks about his thumb rather than about the window.
+This was caught by the implementer questioning the brief it was given, which was
+mine and was wrong.
+
+**The typing box was 119px wide on a 393px screen.** Milkdown's stylesheet sets
+`padding: 60px 120px` on the editable area and loads after ours, which asks for
+1.5rem at the same specificity. Thirty per cent of the screen, four words to a
+line. 320px now.
+
+### Verifying the wrong artifact, three times
+
+Worth writing down because the pattern repeated all evening and each instance
+looked like success.
+
+`docker compose restart` **does not rebuild the image.** The source is baked in
+at build time; only `data/` is mounted. So the wake lock was "deployed" and the
+running container had no trace of it, and the phone test that followed proved
+nothing. Diagnosed only by fetching the served file and counting occurrences.
+
+`make verify-fast` **printed exit code 0 while `make` had failed** on a format
+check. The suite had not run at all. Reading the output rather than the exit
+status caught it.
+
+The editor-width test **passed against host source while the container served
+the old CSS**, because pytest runs the app directly. Re-measuring after the
+rebuild was the only reason this did not ship believed-fixed.
+
+The through-line: check the thing itself - the bytes served, the log, the
+measurement - never a proxy for it.
+
+### What a real device proved that no test could
+
+`'wakeLock' in navigator` is **false** in headless Chromium, so the suite could
+only ever prove the feature-detect and the silent degradation. Acquisition and
+release were unverifiable here and were verified over adb instead:
+`KEEP_SCREEN_ON` present on Chrome's window during a recording, the screen alive
+through fifteen consecutive 15-second timeout windows, and the flag gone the
+moment he stopped. Nine minutes of continuous capture with the screen dark and
+nothing lost.
+
+Two false starts first, neither the code's fault: `stay_on_while_plugged_in` was
+`15`, so the screen could not sleep while the USB cable was attached; and the
+phone was holding a cached `recorder.js` from before the deploy. Both were
+diagnosed by asking the page directly over the DevTools protocol rather than
+inferring from behaviour.
+
+## Moving to a machine whose restart policy is honoured
+
+The site was down one morning: the machine had rebooted and `restart:
+unless-stopped` had not brought it back. The cause is that podman has no
+always-running daemon, so the policy is only acted on at boot if
+`podman-restart.service` is enabled, and it was not. Enabling it would also have
+resurrected seven containers from other projects, dead four months.
+
+So it moves to a host running real Docker, where the policy it already declares
+is honoured without any of that.
+
+`relocate.sh` names every file it packages - the right choice for a tarball
+someone unpacks in five years, since nothing gets in by accident. The cost is
+that a file added later is silently absent and the tarball looks complete
+regardless. The Tailscale overlay, written the same morning, was not in the
+list: the move would have arrived with the archive intact and no way to publish
+it. Found by unpacking a real tarball on the real target and looking.
+
+Two more found the same way. `veillee reindex` on the far end counted **three**
+answers where the archive holds two - a leftover from the phone test, a
+formatting experiment filed under a chapter whose question had already been
+deleted. And the tarball carried this machine's `.env`, whose
+`VEILLEE_PROXY_BIND` is a tailnet address that does not exist on the new host
+and would have failed to bind.
+
+The archive itself moved intact, and this was checked properly: all ten files
+byte-for-byte identical by SHA-256, and a reindex from the transferred files
+alone reporting the same counts with no problems. The index is deliberately not
+in the tarball, so that reindex is a free proof rather than a formality.

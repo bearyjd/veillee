@@ -5,6 +5,54 @@ need it.
 
 ---
 
+## 0. Where things stand, 8 September 2026
+
+Read this before section 1, which describes a machine that is no longer the
+only one running this.
+
+**He is moving to a phone.** He has been writing on a Windows laptop; the
+point of a phone is that he can record when a thing occurs to him rather
+than when he sits down. Three things were fixed to make that real, and all
+three were verified on an actual Android device over adb, not in a test:
+
+- **The screen no longer sleeps mid-story.** Android locks after a minute
+  untouched and a locked screen can suspend the page, ending the recording
+  while he is still talking into it. A wake lock is now held for exactly as
+  long as he is recording. Confirmed by `KEEP_SCREEN_ON` appearing on
+  Chrome's window and the screen staying awake through fifteen consecutive
+  15-second timeout windows, then releasing cleanly on stop.
+- **Touch targets keep the 56px promise**, and keep it in landscape. They
+  used to hang on a width breakpoint of 32rem; a phone turned sideways is
+  851px, so every one of them silently reverted the moment he rotated it.
+  They now hang on `pointer: coarse`, which asks about his thumb.
+- **The typing box was 119px wide on a 393px screen** - about four words to
+  a line - because Milkdown's own stylesheet sets `padding: 60px 120px` and
+  loads after ours. It is 320px now.
+
+**A second instance is staged on `media` and is not serving anyone.** The
+archive was moved there and verified: all ten files byte-for-byte identical,
+`veillee reindex` reporting the same two answers, one recording and two
+photographs with no problems. It runs under real Docker, which honours
+`restart: unless-stopped` across a reboot on its own - this machine's podman
+does not, which is why the site was down one morning until it was started by
+hand.
+
+It is bound to loopback on `media` and reachable from nowhere else. Two
+things remain, both needing the Tailscale admin console:
+
+1. A `TS_AUTHKEY` (reusable, **not** ephemeral), then
+   `docker compose -f compose.yaml -f compose.tailscale.yaml up -d`
+2. Repointing the `proxy` node from this machine to the new one.
+   The hostname he uses resolves to `proxy`, not to here, so DNS needs no
+   change. (Its real name is in `LOCAL.md`, which is gitignored.)
+
+**Until both are done, this machine is the one serving him.** Do not stop
+it, and do not touch `data/` here, until he has recorded successfully
+against the new one. `data/` has no git remote by design; the copy on
+`media` and the nightly backup are the only others.
+
+---
+
 ## 1. Start here
 
 ```bash
@@ -52,7 +100,10 @@ tailscale serve --bg 8002        # never `tailscale funnel`
 **Correction on `<your-proxy-hostname>`.** It is *not* exposed to the internet, contrary
 to what the `Public` label in the proxy UI suggests. Public DNS (checked against
 1.1.1.1 and 8.8.8.8) returns `<proxy-tailnet-ip>` and `<tailnet-ipv6>` —
-CGNAT and ULA addresses, neither routable from the internet. "Public" there means
+CGNAT and ULA addresses, neither routable from the internet.
+(Re-checked 8 Sep 2026: those resolvers now return **nothing at all** for it.
+Tighter still, and the conclusion is unchanged, but the sentence above no
+longer describes what you will see if you run the check yourself.) "Public" there means
 a publicly-signed certificate, not public reachability. Anyone can look the name
 up; only a device on your tailnet can connect to it. Both addresses below are
 equivalent in reach.
@@ -92,9 +143,19 @@ There is no login. He opens the link and writes — that is the whole design. Bu
 both addresses resolve only to tailnet addresses, so **a device must be signed in
 to your tailnet or it cannot reach the site at all**.
 
-**This is done.** He has been writing and recording, and the only Windows machine
-online in the tailnet is `DESKTOP-GM7IC69`, which matches the browser his
-recording came from. Nothing further is needed.
+**This is done for his laptop.** He has been writing and recording, and the only
+Windows machine online in the tailnet is `DESKTOP-GM7IC69`, which matches the
+browser his recording came from.
+
+**His phone is not done, and it is the one thing left that needs you in the
+same room as him.** Install Tailscale from the Play Store, sign it in to your
+tailnet, and turn on **Always On VPN** in Android's settings - without that a
+reboot leaves him unable to reach the site with no clue why. Then give him the
+same address his laptop uses; nothing else changes.
+
+Android was the easy case: Chrome there is the same engine every test in this
+repository already runs against. Had it been an iPhone, every browser on it
+would be WebKit underneath, which nothing here has ever been tested on.
 
 If you ever have to do it again, for him or for anyone else:
 
@@ -226,6 +287,23 @@ clean — checked: no `data/`, no `.env`, no tailnet identifiers anywhere in it.
 But `HANDOFF.md` and `BUILD_LOG.md` name `<machine>.<tailnet>.ts.net`,
 `<your-proxy-hostname>`, `<tailnet-ip>` and `<proxy-tailnet-ip>`. A public repository would
 publish your tailnet topology along with the code.
+
+**That "checked" was wrong, and the repository has been public the whole
+time.** Corrected 8 Sep 2026. The placeholders above are indeed placeholders,
+but line 96 of this file names `DESKTOP-GM7IC69` outright, and that is a live
+node on the tailnet — his laptop. It has been on GitHub since it was written.
+
+The severity is low: a hostname, not an address and not a credential. Nothing
+resolves from it and nothing is reachable through it. The hostname he actually
+types is *not* in the repository, and keeping it out took an actual scan: the
+first draft of this very correction put it in twice, in a sentence claiming it
+was absent. Auth keys, tailnet IPs, ULA addresses and the tailnet name were
+checked the same way, on the staged diff, before each push.
+
+It is left standing rather than scrubbed, because removing it means rewriting
+the history of a public repository for a machine name. The claim above is
+what needed fixing: a wrong "we checked" is worse than no claim, because the
+next person believes it and does not look.
 
 The combination I would use: **private repository, public package.** The source
 keeps your notes to itself; the image needs no login to pull, so a new host can
