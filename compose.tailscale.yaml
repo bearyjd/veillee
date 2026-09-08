@@ -15,14 +15,18 @@
 services:
   tailscale:
     image: tailscale/tailscale:latest
-    hostname: veillee                    # -> veillee.<tailnet>.ts.net
     environment:
       TS_AUTHKEY: "${TS_AUTHKEY:?TS_AUTHKEY is required - see the header of this file}"
+      # The documented way to name the node. Setting the container's `hostname:`
+      # instead happens to work and is not what the image reads.
+      TS_HOSTNAME: veillee               # -> veillee.<tailnet>.ts.net
       TS_STATE_DIR: /var/lib/tailscale
       # Documented gotcha: this is a path inside a mounted DIRECTORY. Mounting
       # the json file directly appears to work and then silently stops updating.
       TS_SERVE_CONFIG: /config/serve.json
-      TS_ACCEPT_DNS: "true"
+      # Nothing here needs to resolve other machines by name; it only needs to
+      # be reachable. Matches the sibling heirloom deployment on the same host.
+      TS_EXTRA_ARGS: "--accept-dns=false"
       # Userspace networking needs no /dev/net/tun and no NET_ADMIN. Slower in
       # theory; irrelevant for one man's voice at 48 kbps.
       TS_USERSPACE: "true"
