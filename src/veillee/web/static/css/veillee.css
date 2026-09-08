@@ -270,6 +270,24 @@ a.card:hover, a.card:focus { border-color: var(--accent); background: var(--acce
   line-height: var(--line);
 }
 .milkdown .ProseMirror { padding: 1.5rem; min-height: 18rem; outline: none; }
+
+/* Said again, louder, because Milkdown says it too and says it second.
+ *
+ * The vendored stylesheet carries `padding: 60px 120px` on the editable area -
+ * a desktop editor's generous margins, written in fixed pixels by people who
+ * assumed a desktop. Our own rule above asks for 1.5rem and has exactly the
+ * same specificity, so it lost on load order alone. On his phone that left a
+ * typing column 119px wide inside a 393px screen: about four words to a line,
+ * adrift in margin, which is what a sentence looks like when it wraps every
+ * second breath.
+ *
+ * Three classes beat the vendor's two, so this wins without `!important`.
+ * The padding is now asked to scale: roomy on a wide screen where there is
+ * room to be roomy, and nearly gone on a phone where every pixel is the
+ * difference between a line of writing and a stack of fragments. */
+.editor-frame .milkdown .ProseMirror {
+  padding: clamp(1rem, 3vw, 3.75rem) clamp(1rem, 5vw, 3.75rem);
+}
 .milkdown .ProseMirror p { margin: 0 0 1.1rem; max-width: none; }
 
 /* The plain-textarea fallback, used when the bundle cannot load. */

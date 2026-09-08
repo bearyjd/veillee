@@ -232,6 +232,41 @@ class TestTheTouchPromise:
         assert not overlaps, "these buttons overlap on the screen: " + ", ".join(overlaps)
 
 
+@pytest.mark.parametrize(("width", "height"), PORTRAIT, ids=[f"{w}x{h}" for w, h in PORTRAIT])
+def test_he_has_a_real_column_to_type_in(
+    browser: object, live_server: LiveServer, width: int, height: int
+) -> None:
+    """Milkdown's own stylesheet sets `padding: 60px 120px` on the editable
+    area - a desktop editor's generous margins, hardcoded in pixels. Our rule
+    asks for 1.5rem and has the same specificity, so it lost purely because the
+    vendor sheet is loaded second.
+
+    On a 393px phone that left 119px to type in: a column about four words
+    wide, adrift in margin. He would have watched his own sentence wrap every
+    few words. The padding has to give way on a small screen.
+    """
+    context = phone_context(browser, width, height)
+    page = context.new_page()
+    page.goto(live_server.url("/question/q040"), wait_until="load")
+    editor_locator(page)
+    page.wait_for_timeout(900)
+
+    usable = page.evaluate("""() => {
+        const ed = document.querySelector('.ProseMirror')
+            || document.querySelector('#editor-fallback');
+        if (!ed) return null;
+        const cs = getComputedStyle(ed);
+        return ed.getBoundingClientRect().width
+            - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    }""")
+    assert usable is not None, "no editor on the page at all"
+    share = usable / width
+    assert share >= 0.70, (
+        f"only {usable:.0f}px of {width}px is his to type in ({share:.0%}) - the rest is padding"
+    )
+    context.close()
+
+
 class TestWhatHeSeesFirst:
     def test_the_question_is_the_first_thing_on_the_screen(
         self, page: object, live_server: LiveServer
