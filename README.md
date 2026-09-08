@@ -43,6 +43,32 @@ else, but the record button will not appear.
 authentication unless you set `VEILLEE_PASSCODE`; a public hostname means anyone
 who finds it can read and overwrite the answers.
 
+### Or run Tailscale in the compose file
+
+On a machine where you would rather not install anything - someone else's
+server, a NAS, a box you do not have root on - Tailscale can come up as a
+container beside the app:
+
+```bash
+echo 'TS_AUTHKEY=tskey-...' >> .env
+docker compose -f compose.yaml -f compose.tailscale.yaml up -d
+```
+
+Generate the key at <https://login.tailscale.com/admin/settings/keys>. Make it
+reusable and **not** ephemeral, or the node disappears when the container
+stops and comes back under a different name.
+
+The app then publishes no ports of its own. It moves inside the Tailscale
+container's network namespace, so the only route to it is the tailnet - not the
+host's LAN, not localhost on the host. `tailscale serve` terminates HTTPS with a
+real certificate, which is also what lets the record button work: browsers
+withhold the microphone from an insecure origin.
+
+Two things that will bite you if you change them. The serve config is mounted as
+a *directory*, because the container watches the parent directory for changes
+and a bare file mount silently stops updating. And `tailscale/state/` holds the
+node's private key: it is gitignored, and must stay that way.
+
 That is the whole story: no accounts, no API keys, no cloud, no setup wizard.
 `up.sh` works out which container runtime is present, which uid the containers
 must run as so that `data/` ends up owned by you, and a port that is actually

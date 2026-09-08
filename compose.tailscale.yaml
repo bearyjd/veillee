@@ -1,0 +1,47 @@
+# Tailscale in the compose file, so the host needs nothing but a container
+# runtime - no `apt install tailscale`, no sudo, no daemon of its own.
+#
+#   docker compose -f compose.yaml -f compose.tailscale.yaml up -d
+#
+# The app stops publishing ports of its own and moves inside the Tailscale
+# container's network namespace. Nothing on the host's LAN can reach it: the
+# only way in is the tailnet, which is the security boundary this application
+# has always assumed and still has no substitute for.
+#
+# Requires TS_AUTHKEY in .env - generate one at
+# https://login.tailscale.com/admin/settings/keys (reusable, ephemeral OFF, or
+# the node vanishes and its name changes every restart). .env is gitignored.
+
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: veillee                    # -> veillee.<tailnet>.ts.net
+    environment:
+      TS_AUTHKEY: "${TS_AUTHKEY:?TS_AUTHKEY is required - see the header of this file}"
+      TS_STATE_DIR: /var/lib/tailscale
+      # Documented gotcha: this is a path inside a mounted DIRECTORY. Mounting
+      # the json file directly appears to work and then silently stops updating.
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_ACCEPT_DNS: "true"
+      # Userspace networking needs no /dev/net/tun and no NET_ADMIN. Slower in
+      # theory; irrelevant for one man's voice at 48 kbps.
+      TS_USERSPACE: "true"
+    volumes:
+      # Without a persistent state dir every restart joins the tailnet as a
+      # NEW node, under a new name, and the old one lingers in the console.
+      - ./tailscale/state:/var/lib/tailscale
+      - ./tailscale/config:/config
+    restart: unless-stopped
+
+  app:
+    # Shares the Tailscale container's network namespace, so `tailscale serve`
+    # reaches it on plain loopback and it is reachable no other way.
+    network_mode: service:tailscale
+    # A service in another container's namespace may not publish ports itself.
+    # Compose would refuse to start with the base file's mappings still set.
+    ports: !reset []
+    depends_on:
+      - tailscale
+
+  # The worker only ever touches the database on disk. It stays on the default
+  # network, unreachable and uninterested.

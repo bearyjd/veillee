@@ -25,3 +25,9 @@ backups/
 
 # Host-specific notes; contains tailnet addresses.
 LOCAL.md
+
+# The tailnet node's own identity, written by the Tailscale container. It is a
+# PRIVATE KEY. Committing it would hand anyone who reads this repository a
+# machine on the tailnet - and this repository is public. The serve config
+# beside it holds no secrets and is tracked on purpose.
+tailscale/state/
