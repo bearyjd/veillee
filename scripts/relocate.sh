@@ -36,7 +36,9 @@ tar -czf "$OUT" \
   --exclude="$DATA_DIR/veillee.db-wal" \
   --exclude="$DATA_DIR/veillee.db-shm" \
   --exclude="$DATA_DIR/.uploads" \
-  Dockerfile compose.yaml docker-entrypoint.sh Makefile pyproject.toml uv.lock \
+  Dockerfile compose.yaml compose.tailscale.yaml docker-entrypoint.sh \
+  tailscale/config \
+  Makefile pyproject.toml uv.lock \
   README.md HANDOFF.md BUILD_LOG.md LICENSE VERSION \
   src questions scripts tests docs \
   $([ -d "$DATA_DIR" ] && echo "$DATA_DIR") \
@@ -58,6 +60,12 @@ Copy it over and start it:
 Then publish it on the new machine, and never with funnel:
 
     tailscale serve --bg 8000
+
+or, on a host you would rather not install anything on, bring Tailscale up
+beside it - the compose overlay and its serve config travel in this tarball:
+
+    echo 'TS_AUTHKEY=tskey-...' >> .env
+    docker compose -f compose.yaml -f compose.tailscale.yaml up -d
 
 The index is not in the tarball on purpose - it is rebuilt from the archive by
 the reindex above, which is also a free check that nothing was lost in transit.
