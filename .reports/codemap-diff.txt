@@ -1,0 +1,53 @@
+CODEMAP GENERATION REPORT
+Generated: 2026-09-09T02:07:40Z
+Repo:      veille-webserver @ b1f71c1
+
+STATUS: INITIAL GENERATION - no prior codemaps existed.
+Diff detection is not applicable this run; there is no baseline to compare
+against. The next run will diff against these files and will ask before
+overwriting if more than 30% changes.
+
+SCANNED
+  101 source files (33 python in src/, 32 test modules, 15 templates,
+  3 hand-written js, 2 css, 15 question yaml files)
+  4,659 lines of python in src/
+
+WRITTEN
+  docs/CODEMAPS/architecture.md   ~750 tokens
+  docs/CODEMAPS/backend.md        ~900 tokens
+  docs/CODEMAPS/frontend.md       ~700 tokens
+  docs/CODEMAPS/data.md           ~800 tokens
+  docs/CODEMAPS/dependencies.md   ~650 tokens
+
+VERIFIED WHILE WRITING (not asserted from reading)
+  141 questions across 15 chapters   - loaded the bank
+  zero CDN hosts in templates        - grepped
+  vendored: milkdown, alpine, htmx   - listed the directory
+  no foreign keys in schema          - read db.py
+  A first draft omitted htmx from the vendored list. Corrected before commit.
+
+ARCHITECTURE NOTES WORTH CARRYING FORWARD
+  - Filesystem is authoritative; SQLite is a disposable index rebuilt by
+    "veillee reindex". Any codemap that inverts this is wrong.
+  - No migrations exist, and none are needed, for the same reason.
+  - Two capture paths (chunked MediaRecorder, whole-file upload) share one
+    server pipeline. Neither is a degraded mode.
+  - No runtime third-party service. No API keys. Works offline.
+
+RECENT CHANGES REFLECTED (2026-09-08/09)
+  + tests/e2e/test_phone.py            android viewports, touch emulation
+  + compose.tailscale.yaml             tailscale sidecar, app has no host ports
+  + compose.registry.yaml              pull ghcr tag instead of building
+  ~ static/js/recorder.js              screen wake lock while recording
+  ~ static/css/veillee.css             pointer:coarse touch targets; editor width
+  ~ scripts/relocate.sh                now ships both compose overlays
+
+STALENESS
+  None. Every file described was read or executed during this run.
+  HANDOFF.md and BUILD_LOG.md were updated 2026-09-09 and agree with these maps.
+
+KNOWN GAPS (documented, not fixed)
+  - VEILLEE_PASSCODE unset: no authentication; the tailnet is the only boundary.
+  - data/ has no git remote by design; backups are the only redundancy.
+  - Media host's compose files are hand-copied, not traceable to a commit;
+    the running image is (sha- tag from CI).
