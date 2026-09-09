@@ -167,7 +167,12 @@ Compose reads these from `.env` in the project directory, not from your shell.
 
 ## Documentation
 
-- **[HANDOFF.md](HANDOFF.md)** — start here in the morning.
+- **[HANDOFF.md](HANDOFF.md)** — start here in the morning. Which machine is
+  live, what is half-done, and what to do when it breaks while he is using it.
+- [docs/RUNBOOK.md](docs/RUNBOOK.md) — deploying, rolling back, backups, moving hosts.
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — setup, the commands, how this codebase expects to be tested.
+- [docs/ENV.md](docs/ENV.md) — every environment variable and its default.
+- [docs/CODEMAPS/](docs/CODEMAPS/) — the shape of the code, small enough to read in one sitting.
 - [BUILD_LOG.md](BUILD_LOG.md) — what was built, what broke, what was done about it.
 - [docs/prp/0001-veillee.md](docs/prp/0001-veillee.md) — why it is built this way.
 

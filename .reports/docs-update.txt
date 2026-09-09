@@ -1,0 +1,43 @@
+DOCUMENTATION UPDATE
+Generated: see git commit date
+──────────────────────────────────────────────
+Created:  docs/CONTRIBUTING.md   setup, 21-command table (from Makefile),
+                                 testing layout, style, PR checklist
+Created:  docs/RUNBOOK.md        deploy via ghcr tag, health signals, rollback
+                                 by image pin, backups, host moves
+Created:  docs/ENV.md            28 variables (17 app + 11 deploy) with
+                                 defaults, generated from config.py + compose
+Updated:  README.md              documentation index now lists the above
+Skipped:  HANDOFF.md             already current (2026-09-09); RUNBOOK defers
+                                 to its section 6 rather than duplicating it
+Skipped:  BUILD_LOG.md           narrative history, not generated
+Skipped:  docs/prp/0001          design rationale, hand-written, still accurate
+──────────────────────────────────────────────
+
+SOURCES OF TRUTH USED
+  Makefile              21 targets, self-documenting via `##`
+  src/veillee/config.py 17 application variables and their defaults
+  compose*.yaml         11 deployment variables
+  .github/workflows/    publish.yml -> the deploy procedure in RUNBOOK
+
+NOT AVAILABLE
+  .env.example does not exist in this repo, by design: every variable has a
+  working default and the app starts with an empty environment. ENV.md is
+  generated from config.py instead, which is the actual source of truth.
+
+STALENESS SCAN
+  No file older than 5 days. Nothing flagged.
+  Oldest: docs/prp/0001-veillee.md (2026-09-03), design rationale, still true.
+
+JUDGEMENT CALLS
+  RUNBOOK.md does not restate HANDOFF.md section 6. This repository has twice
+  been bitten by two documents disagreeing with each other; a second incident
+  guide would be a third instance. RUNBOOK points at it instead.
+
+  ENV.md is a third place configuration is described, after README's short
+  table and compose's inline defaults. Marked AUTO-GENERATED with its source
+  named, so the next drift is a regeneration rather than an argument.
+
+CARRIED FORWARD (documented, unresolved)
+  VEILLEE_PASSCODE unset - no authentication; the tailnet is the boundary.
+  data/ has no git remote by design; one host's copy is the only redundancy.
