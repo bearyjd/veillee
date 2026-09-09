@@ -8,15 +8,20 @@
 # only way in is the tailnet, which is the security boundary this application
 # has always assumed and still has no substitute for.
 #
-# Requires TS_AUTHKEY in .env - generate one at
+# Authenticate either way. Unattended: put TS_AUTHKEY in .env, generated at
 # https://login.tailscale.com/admin/settings/keys (reusable, ephemeral OFF, or
-# the node vanishes and its name changes every restart). .env is gitignored.
+# the node vanishes and its name changes every restart); .env is gitignored.
+# Interactive: set nothing, bring it up, and open the login URL it logs.
 
 services:
   tailscale:
     image: tailscale/tailscale:latest
     environment:
-      TS_AUTHKEY: "${TS_AUTHKEY:?TS_AUTHKEY is required - see the header of this file}"
+      # Optional. With a key the node joins unattended; without one the
+      # container logs a login URL to open in a browser, which is easier for a
+      # one-off machine and mints nothing that has to be kept secret afterwards:
+      #   docker compose ... logs tailscale | grep -i 'to authenticate'
+      TS_AUTHKEY: "${TS_AUTHKEY:-}"
       # The documented way to name the node. Setting the container's `hostname:`
       # instead happens to work and is not what the image reads.
       TS_HOSTNAME: veillee               # -> veillee.<tailnet>.ts.net

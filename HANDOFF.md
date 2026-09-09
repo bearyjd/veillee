@@ -5,10 +5,10 @@ need it.
 
 ---
 
-## 0. Where things stand, 8 September 2026
+## 0. Where things stand, 8-9 September 2026
 
-Read this before section 1, which describes a machine that is no longer the
-only one running this.
+Read this before section 1, which describes a machine that no longer serves
+him.
 
 **He is moving to a phone.** He has been writing on a Windows laptop; the
 point of a phone is that he can record when a thing occurs to him rather
@@ -29,31 +29,69 @@ three were verified on an actual Android device over adb, not in a test:
   a line - because Milkdown's own stylesheet sets `padding: 60px 120px` and
   loads after ours. It is 320px now.
 
-**A second instance is staged on `media` and is not serving anyone.** The
-archive was moved there and verified: all ten files byte-for-byte identical,
-`veillee reindex` reporting the same two answers, one recording and two
-photographs with no problems. It runs under real Docker, which honours
-`restart: unless-stopped` across a reboot on its own - this machine's podman
-does not, which is why the site was down one morning until it was started by
-hand.
+### It has moved. `media` is the live machine now.
 
-It is bound to loopback on `media` and reachable from nowhere else. Two
-things remain, both needing the Tailscale admin console:
+**Everything below in section 1 describes this machine, which no longer
+serves him.** Completed 9 September 2026, in this order: the archive moved
+and was verified, a Tailscale sidecar joined `media` to the tailnet, the
+`proxy` node was repointed, and his hostname came up on the new backend.
 
-1. A `TS_AUTHKEY` (reusable, **not** ephemeral), then
-   `docker compose -f compose.yaml -f compose.tailscale.yaml up -d`
-2. Repointing the `proxy` node from this machine to the new one.
-   The hostname he uses resolves to `proxy`, not to here, so DNS needs no
-   change. (Its real name is in `LOCAL.md`, which is gitignored.)
+How to tell them apart at a glance, because both still run and both answer:
 
-**Until both are done, this machine is the one serving him.** Do not stop
-it, and do not touch `data/` here, until he has recorded successfully
-against the new one. `data/` has no git remote by design; the copy on
-`media` and the nightly backup are the only others.
+```bash
+curl -s https://<his-hostname>/healthz | grep -o '"total_human":"[^"]*"'
+```
+
+`media` is a 104 GB host. This machine is 8 TB. That is the quickest
+unambiguous check that a request is landing where you think it is.
+
+| | live? | where |
+|---|---|---|
+| `media` | **yes** | `/home/user/docker/veillee`, Docker, node `veillee` on the tailnet |
+| this machine | no | still running, routed to by nothing, kept as a warm fallback |
+
+Verified on the new machine, not assumed: all thirteen files byte-for-byte
+identical by SHA-256; `veillee reindex` rebuilding the index from the moved
+files alone and reporting the same two answers, one recording and two
+photographs with no problems; the node keeping the same identity and address
+across a full restart with no auth key present; and HTTPS answering in 54ms
+with a real Let's Encrypt certificate, `tailnet only`, unresolvable on public
+DNS.
+
+The app there publishes **no host ports at all** - it runs inside the
+Tailscale container's network namespace, so the tailnet is the only route in.
+That is a tighter boundary than this machine ever had, where the app was
+also reachable on a tailnet address directly.
+
+**The backup moved too, and that was the part that mattered.** Between the
+cutover and it being noticed, his live archive had `last_backup: never` while
+the nightly timer on this machine dutifully backed up a copy nobody was
+writing to. The timer now runs on `media` at 03:30 with lingering enabled,
+proven by firing it once by hand rather than trusting the unit file: a 268 MB
+archive and a consistent SQLite copy, retention keeping fourteen. The timer
+**here is disabled**, and the four archives it already wrote are kept.
+
+**Do not delete `data/` on this machine yet.** `data/` has no git remote by
+design, and `media`'s only backup currently sits on the same disk as the
+original. This machine's copy is the only real off-machine redundancy there
+is. Keep it until the backups live somewhere else, or until `media` has a few
+nights behind it.
+
+**Still open: there is no passcode.** `VEILLEE_PASSCODE` is unset, so anyone
+on the tailnet can read and overwrite his answers. That was a reasonable
+trade when the only device was a laptop at home. A phone is a thing that gets
+left in a taxi. The cookie lasts five years, so he would type it once.
 
 ---
 
 ## 1. Start here
+
+> **This section is about the old machine.** It is accurate and it is kept,
+> because the commands are the same everywhere and this is where they are
+> explained. But the instance that serves him runs on `media`, in
+> `/home/user/docker/veillee`, under Docker rather than podman - see section
+> 0. Read `<machine>.<tailnet>.ts.net` below as `veillee.<tailnet>.ts.net`,
+> and note that on `media` the app publishes no ports at all.
 
 ```bash
 cd /var/home/user/Documents/vibe-code/veille-webserver
