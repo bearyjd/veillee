@@ -36,7 +36,8 @@ tar -czf "$OUT" \
   --exclude="$DATA_DIR/veillee.db-wal" \
   --exclude="$DATA_DIR/veillee.db-shm" \
   --exclude="$DATA_DIR/.uploads" \
-  Dockerfile compose.yaml compose.tailscale.yaml docker-entrypoint.sh \
+  Dockerfile compose.yaml compose.tailscale.yaml compose.registry.yaml \
+  docker-entrypoint.sh \
   tailscale/config \
   Makefile pyproject.toml uv.lock \
   README.md HANDOFF.md BUILD_LOG.md LICENSE VERSION \

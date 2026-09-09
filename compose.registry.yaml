@@ -1,13 +1,22 @@
 # Run Veillee from a published image, with no source checkout and no build.
 #
-#   docker compose -f compose.registry.yaml up -d
+#   docker compose -f compose.registry.yaml -f compose.tailscale.yaml pull
+#   docker compose -f compose.registry.yaml -f compose.tailscale.yaml up -d
 #
 # This is the file to copy to a new host along with data/. Everything else -
 # the code, the model, ffmpeg - comes down inside the image.
+#
+# It is also how you stop a host drifting. A machine that builds its own image
+# keeps running whatever it built until someone remembers to rebuild it, and
+# nothing about the running site says which commit it came from. Pulling a
+# published tag means the push and the deploy are the same act.
+#
+# `VEILLEE_IMAGE` overrides the image for a fork; the default is the one this
+# repository's own CI publishes on every push to main.
 
 services:
   app:
-    image: ${VEILLEE_IMAGE:-ghcr.io/<owner>/veillee:latest}
+    image: ${VEILLEE_IMAGE:-ghcr.io/bearyjd/veillee:latest}
     pull_policy: ${VEILLEE_PULL_POLICY:-always}
     command: ["veillee", "serve", "--host", "0.0.0.0", "--port", "8000"]
     ports:
@@ -25,7 +34,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: ${VEILLEE_IMAGE:-ghcr.io/<owner>/veillee:latest}
+    image: ${VEILLEE_IMAGE:-ghcr.io/bearyjd/veillee:latest}
     pull_policy: ${VEILLEE_PULL_POLICY:-always}
     command: ["veillee", "worker"]
     depends_on:
