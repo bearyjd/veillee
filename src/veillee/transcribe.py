@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -174,6 +176,40 @@ def transcribe(settings: Settings, audio_path: Path) -> Transcription:
     return transcribe_local(settings, audio_path)
 
 
+# He dictates like a man writing a letter and says the punctuation aloud, so
+# whisper faithfully writes down the word "period". These patterns convert the
+# dictation shape and nothing else.
+#
+# Timid on purpose. "Period" is an ordinary English word - a period of history,
+# the postwar period - and turning one of those into a full stop would put words
+# in his mouth, which is a worse failure than leaving the artifact in. So a bare
+# "period" is never touched: it must be preceded by a comma and followed by a
+# sentence ending, which is the shape dictation takes and ordinary speech does
+# not. The raw machine output is kept verbatim in the .json sidecar regardless.
+_Replacement = str | Callable[[re.Match[str]], str]
+
+_SPOKEN_PUNCTUATION: tuple[tuple[re.Pattern[str], _Replacement], ...] = (
+    # "...to God, period, end of recording." -> "...to God. End of recording."
+    (re.compile(r",\s+period,\s+(\w)"), lambda m: ". " + m.group(1).upper()),
+    # "...around 1905, period. Daniel..." -> "...around 1905. Daniel..."
+    (re.compile(r",\s+period\s*(?=[.!?])"), ""),
+    # "...Rhode Island. Paragraph back to..." -> a real paragraph break
+    (re.compile(r"(?<=[.!?])\s+Paragraph\s+"), "\n\n"),
+)
+
+
+def apply_spoken_punctuation(text: str) -> str:
+    """Turn spoken punctuation commands into punctuation, conservatively.
+
+    Only the dictation shape is converted. An ordinary "period" - one not
+    preceded by a comma and followed by a sentence ending - is left exactly as
+    the machine heard it.
+    """
+    for pattern, replacement in _SPOKEN_PUNCTUATION:
+        text = pattern.sub(replacement, text)
+    return text
+
+
 def render_markdown(
     transcription: Transcription, *, recording_id: str, question_id: str, created: str
 ) -> str:
@@ -190,7 +226,7 @@ def render_markdown(
         "note": "Machine draft. Not shown to him. Correct it before trusting it.",
     }
     lines = [
-        f"[{format_timestamp(segment.start)}] {segment.text}"
+        f"[{format_timestamp(segment.start)}] {apply_spoken_punctuation(segment.text)}"
         for segment in transcription.segments
         if segment.text
     ]
