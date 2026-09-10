@@ -92,3 +92,51 @@ class TestTheRawOutputIsNeverTheCleanedOne:
         )
         render_markdown(t, recording_id="r1", question_id="q1", created="2026-09-06T00:00:00Z")
         assert t.segments[0].text == original, "rendering mutated the machine's own record"
+
+
+class TestTheOtherShapeWhisperProduces:
+    """Re-running the same audio segmented it differently and wrote "Period."
+    as a standalone sentence instead of a comma clause. Both shapes are real;
+    these came out of his actual recording on the second pass.
+    """
+
+    @pytest.mark.parametrize(
+        ("spoken", "expected"),
+        [
+            (
+                "Period. Daniel was one of around nine children",
+                "Daniel was one of around nine children",
+            ),
+            ("Period. Patriarch Daniel Beary and his wife", "Patriarch Daniel Beary and his wife"),
+            ("in Newport, Rhode Island. Period.", "in Newport, Rhode Island."),
+            (
+                "as his walk took place. Period. Therefore, Daniel led him",
+                "as his walk took place. Therefore, Daniel led him",
+            ),
+            (
+                "is now known only to God. Period. End of recording.",
+                "is now known only to God. End of recording.",
+            ),
+        ],
+    )
+    def test_a_standalone_period_sentence_is_removed(self, spoken: str, expected: str) -> None:
+        assert apply_spoken_punctuation(spoken) == expected
+
+    def test_paragraph_at_the_start_of_a_segment(self) -> None:
+        assert apply_spoken_punctuation("Paragraph back to the orchard story") == (
+            "back to the orchard story"
+        )
+
+
+class TestEmphasisAndOrdinaryUseBothSurvive:
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "Period pieces were what she liked best",
+            "it was a difficult period. He never spoke of it",
+            "the postwar period.",
+            "they farmed there for a long period of time",
+        ],
+    )
+    def test_not_every_capital_p_is_a_command(self, sentence: str) -> None:
+        assert apply_spoken_punctuation(sentence) == sentence

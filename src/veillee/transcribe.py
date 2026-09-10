@@ -193,8 +193,15 @@ _SPOKEN_PUNCTUATION: tuple[tuple[re.Pattern[str], _Replacement], ...] = (
     (re.compile(r",\s+period,\s+(\w)"), lambda m: ". " + m.group(1).upper()),
     # "...around 1905, period. Daniel..." -> "...around 1905. Daniel..."
     (re.compile(r",\s+period\s*(?=[.!?])"), ""),
+    # Whisper segments the same audio differently on different runs. The second
+    # shape it produces is "Period." standing alone as its own sentence, either
+    # opening a segment or following one. Requiring a capital P immediately
+    # followed by a full stop, at a sentence boundary, is what keeps this off
+    # ordinary English: "the postwar period." is lower case and mid-sentence,
+    # and "Period pieces were her favourite" has no full stop after the word.
+    (re.compile(r"(?:(?<=[.!?])|^)\s*Period\.(?=\s|$)"), ""),
     # "...Rhode Island. Paragraph back to..." -> a real paragraph break
-    (re.compile(r"(?<=[.!?])\s+Paragraph\s+"), "\n\n"),
+    (re.compile(r"(?:(?<=[.!?])|^)\s*Paragraph\s+"), "\n\n"),
 )
 
 
@@ -207,7 +214,10 @@ def apply_spoken_punctuation(text: str) -> str:
     """
     for pattern, replacement in _SPOKEN_PUNCTUATION:
         text = pattern.sub(replacement, text)
-    return text
+    # Removing a word mid-line leaves doubled spaces, and a paragraph break at
+    # the very start of a segment is a break before nothing.
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip("\n").strip()
 
 
 def render_markdown(
