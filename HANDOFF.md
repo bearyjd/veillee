@@ -5,7 +5,7 @@ need it.
 
 ---
 
-## 0. Where things stand, 8-9 September 2026
+## 0. Where things stand, 11 September 2026
 
 Read this before section 1, which describes a machine that no longer serves
 him.
@@ -81,6 +81,58 @@ nights behind it.
 on the tailnet can read and overwrite his answers. That was a reasonable
 trade when the only device was a laptop at home. A phone is a thing that gets
 left in a taxi. The cookie lasts five years, so he would type it once.
+
+### Since the move, to 11 September
+
+**Deploying no longer drifts.** CI publishes `sha-<commit>` and `latest` to
+GHCR on every push to main, and `media` pulls rather than builds. The running
+container carries its own git revision as a label, so "which commit is live"
+is a question with an answer now:
+
+```bash
+docker inspect veillee-app-1 --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
+```
+
+The full procedure, and rollback by pinning an old tag, is in
+`docs/RUNBOOK.md`. That file does not repeat section 6 below; this one is for
+deploying, that one is for when something is broken while he is using it.
+
+**He says the punctuation out loud, and it is no longer written down.** His
+orchard recording read "...known only to God, period, end of recording."
+thirteen times over. A conversion now runs on the draft; the `.json` sidecar
+keeps whisper's exact words, and the closing line reads as he meant it.
+
+Worth knowing if you touch it: **whisper is not deterministic.** The same
+audio segmented differently on a second run and produced "Period." as its own
+sentence instead of a comma clause, which the first version of the rule did
+not catch. A rule written against one run's output is a rule written against
+a coincidence.
+
+**New documentation**, all generated from the code rather than from memory:
+`docs/CODEMAPS/` (the shape of the system, five short files), `docs/RUNBOOK.md`,
+`docs/CONTRIBUTING.md`, `docs/ENV.md` (every variable and its default).
+
+**The backup now runs unattended.** It fired on its own at 03:34 on 11 Sep
+without anyone starting it, which is the proof the hand-fired one could not
+give.
+
+### The two things actually waiting
+
+1. **Tailscale is still not on his phone.** Everything built for the phone -
+   the wake lock, the touch targets, the widened editor - is live and verified
+   on a real Android device, and none of it has reached him. It needs someone
+   in the room with him: install from the Play Store, sign in, turn on
+   **Always On VPN**, hand him the same address his laptop uses.
+
+2. **The orchard transcript is still `reviewed: false`.** The spoken
+   punctuation is gone, but nobody has listened to the audio against the text.
+   Names and places are exactly where a machine transcript of an elderly man
+   with an Irish accent goes wrong, and that is the one thing here a machine
+   cannot check. `/admin` on the live site.
+
+**He has not written anything since 6 September.** Two answers, one recording,
+two photographs is the whole archive. That is not a fault in the software;
+it is the thing the software exists to change.
 
 ---
 
