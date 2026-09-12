@@ -42,6 +42,34 @@ restarting the app mid-recording loses whatever has not landed. Check first:
 docker compose ... logs app | grep -v healthz | tail -5
 ```
 
+## It deploys itself, nightly
+
+A systemd user timer on the live host runs `scripts/auto-deploy.sh` at 04:00,
+half an hour after the backup, so the night's backup is always of the version
+that was serving before the change.
+
+```bash
+systemctl --user list-timers veillee-deploy.timer
+journalctl --user -u veillee-deploy.service -n 20
+```
+
+The script is built to prefer doing nothing:
+
+- **It will not restart while he is recording.** Chunks land in `.uploads/`
+  while he is still speaking and are assembled only when he stops; restarting
+  between those two moments discards the part of the story he was in the
+  middle of telling. A file touched there in the last fifteen minutes stops
+  the deploy, and it says so in the journal.
+- **It only restarts when the image actually changed**, comparing the running
+  container's `org.opencontainers.image.revision` label against the pulled
+  one.
+- **A failed pull is not an error.** A registry outage leaves the running
+  version alone rather than taking the site down.
+
+Deploying by hand is still the procedure above, and is what you want when you
+have just pushed something and do not intend to wait until four in the
+morning.
+
 ## Health
 
 `GET /healthz` returns status, disk, queue depth, `last_backup`, archive
