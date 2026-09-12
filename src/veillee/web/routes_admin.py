@@ -100,6 +100,7 @@ def save_transcript(
     body: str = Form(...),
     reviewed: str = Form(""),
     settings: Settings = Depends(get_settings),
+    connection: sqlite3.Connection = Depends(get_db),
 ) -> RedirectResponse:
     """Save an edit. The machine original is preserved, never overwritten."""
     path = _transcript_or_404(settings, recording_id)
@@ -127,6 +128,15 @@ def save_transcript(
 
     updated = {**metadata, "reviewed": bool(reviewed), "updated": utc_now_iso(), "history": history}
     atomic_write(path, dumps(updated, body))
+    # The file is the record, but the index is what /admin reads. Without this
+    # he would review a transcript, be redirected back, and be asked to review
+    # it again - and a rebuild could not rescue him, because until this was
+    # fixed nothing read the review back off the disk.
+    connection.execute(
+        "UPDATE recordings SET transcript_reviewed = ? WHERE recording_id = ?",
+        (int(bool(reviewed)), recording_id),
+    )
+    connection.commit()
     autocommit(
         settings.data_dir,
         f"transcript: {recording_id} reviewed",

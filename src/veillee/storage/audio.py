@@ -13,6 +13,7 @@ from pathlib import Path
 from ..config import Settings
 from ..models import Recording
 from .answers import atomic_write
+from .frontmatter import FrontmatterError, loads
 from .paths import recording_dir_for
 
 SIDECAR_VERSION = 1
@@ -118,8 +119,34 @@ def read_sidecar(sidecar_path: Path) -> Recording:
         sha256_opus=entry("opus", "sha256"),
         source=str(payload.get("source", "upload")),
         transcript_path=str(transcript) if transcript and transcript.exists() else None,
-        transcript_reviewed=bool(payload.get("transcript_reviewed", False)),
+        transcript_reviewed=_transcript_is_reviewed(transcript, payload),
     )
+
+
+def _transcript_is_reviewed(transcript: Path | None, payload: dict[str, object]) -> bool:
+    """Whether a person has checked this transcript against the audio.
+
+    The review is recorded in the transcript's own frontmatter, because that is
+    the file the reviewing happens in. It has to be read from there: the sidecar
+    beside the audio never learns about it, so an index rebuilt from the sidecar
+    alone reported every reviewed transcript as unreviewed for ever, and
+    `reindex` - the operation this archive is founded on - confirmed the wrong
+    answer instead of correcting it.
+
+    The sidecar is still honoured as a fallback, for recordings written before
+    the transcript carried the flag.
+    """
+    if transcript is not None and transcript.exists():
+        try:
+            metadata, _ = loads(transcript.read_text(encoding="utf-8"))
+        except (FrontmatterError, OSError):
+            # An unreadable transcript is a problem for the caller to report,
+            # not a reason to lose the rest of the recording.
+            pass
+        else:
+            if "reviewed" in metadata:
+                return bool(metadata["reviewed"])
+    return bool(payload.get("transcript_reviewed", False))
 
 
 def iter_sidecars(settings: Settings) -> list[Path]:
