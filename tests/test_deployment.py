@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sqlite3
+import string
 import subprocess
 from pathlib import Path
 
@@ -683,8 +684,73 @@ class TestEnsureSecretKey:
             tmp_path,
         )
 
-    def test_an_empty_passcode_with_a_comment_means_no_passcode(self, tmp_path: Path) -> None:
-        self._kept("VEILLEE_PASSCODE= # off for now\nVEILLEE_PORT=8123\n", tmp_path)
+    def test_an_empty_passcode_with_a_comment_is_the_literal_comment_text(
+        self, tmp_path: Path
+    ) -> None:
+        # Verified against `docker compose config` (v5.7): `VEILLEE_PASSCODE= # off`
+        # yields the passcode '# off', because a ` #` only starts a comment after a value.
+        out = self._run("VEILLEE_PASSCODE= # off for now\nVEILLEE_PORT=8123\n", tmp_path)
+        assert len(self._key(out)) >= 32
+
+    def test_a_hash_after_a_value_is_still_a_comment(self, tmp_path: Path) -> None:
+        self._rotated(
+            f"VEILLEE_PASSCODE=x # {GOOD_KEY}\nVEILLEE_SECRET_KEY=x\n",
+            "VEILLEE_SECRET_KEY=x",
+            tmp_path,
+        )
+
+    def test_a_quoted_passcode_with_inner_spaces_is_compared_trimmed(self, tmp_path: Path) -> None:
+        # The app strips the passcode before comparing it with the key.
+        self._rotated(
+            f'VEILLEE_PASSCODE=" {GOOD_KEY} "\nVEILLEE_SECRET_KEY={GOOD_KEY}\n', GOOD_KEY, tmp_path
+        )
+
+    def test_a_quoted_family_passcode_with_inner_spaces_is_compared_trimmed(
+        self, tmp_path: Path
+    ) -> None:
+        self._rotated(
+            f"VEILLEE_FAMILY_PASSCODE=' {GOOD_KEY} '\nVEILLEE_SECRET_KEY={GOOD_KEY}\n",
+            GOOD_KEY,
+            tmp_path,
+        )
+
+    @pytest.mark.parametrize(("distinct", "kept"), [(15, False), (16, True)])
+    def test_the_distinct_character_threshold_is_sixteen(
+        self, distinct: int, kept: bool, tmp_path: Path
+    ) -> None:
+        key = (string.ascii_letters[:distinct] * 3)[:32]
+        assert len(key) == 32 and len(set(key)) == distinct
+        env = f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={key}\n"
+        if kept:
+            self._kept(env, tmp_path)
+        else:
+            self._rotated(env, key, tmp_path)
+
+    def test_a_read_error_leaves_the_env_file_untouched(self, tmp_path: Path) -> None:
+        env_text = "VEILLEE_PASSCODE=x\nVEILLEE_PORT=8123\n"
+        (tmp_path / ".env").write_text(env_text, encoding="utf-8")
+        script = (
+            f"source {SCRIPTS / 'runtime.sh'}\n"
+            'grep() { case "$*" in *-vE*) return 2;; esac; command grep "$@"; }\n'
+            "ensure_secret_key .env\n"
+        )
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
+            timeout=60,
+            check=False,
+        )
+        assert result.returncode == 0
+        assert (tmp_path / ".env").read_text(encoding="utf-8") == env_text
+        assert "Could not read" in result.stderr
+        assert list(tmp_path.glob(".env.*")) == []
+
+    def test_a_file_with_only_the_key_line_still_works(self, tmp_path: Path) -> None:
+        # grep -v exits 1 when nothing is left; that is "no match", not an error.
+        out = self._run("VEILLEE_PASSCODE=x\n", tmp_path)
+        assert out.count("VEILLEE_PASSCODE=x") == 1 and len(self._key(out)) >= 32
 
     @pytest.mark.parametrize("pad", ["\u00a0", "\u200b", "$"], ids=["nbsp", "zero-width", "dollar"])
     def test_a_key_padded_with_an_unsafe_character_is_rotated(
@@ -731,6 +797,17 @@ class TestEnsureSecretKey:
         (tmp_path / ".env").chmod(0o640)
         self._run(None, tmp_path)
         assert ((tmp_path / ".env").stat().st_mode & 0o777) == 0o640
+
+    @pytest.mark.parametrize(
+        "pad",
+        ["#", "\u00e9", "a b", "'", "<", "|"],
+        ids=["hash", "e-acute", "space", "quote", "lt", "pipe"],
+    )
+    def test_a_documented_unsafe_character_in_a_quoted_key_is_rotated(
+        self, pad: str, tmp_path: Path
+    ) -> None:
+        old = GOOD_KEY[:30] + pad
+        self._rotated(f'VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY="{old}"\n', old, tmp_path)
 
 
 class TestAtomicWrite:
