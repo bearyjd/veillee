@@ -159,6 +159,7 @@ Everything has a working default and nothing is required.
 | `VEILLEE_PORT` | first free from 8000 | Chosen by `up.sh` and pinned in `.env`. |
 | `VEILLEE_PASSCODE` | *(off)* | His passcode. Full access; the cookie lasts five years. |
 | `VEILLEE_FAMILY_PASSCODE` | *(off)* | A read-only word for relatives. No writing, no transcripts. |
+| `VEILLEE_SECRET_KEY` | *(unset)* | **Required with either passcode**; the app will not start without a private random value of at least 32 characters, different from both passcodes. See `docs/ENV.md`. |
 | `VEILLEE_TRANSCRIPTION_BACKEND` | `local` | `local` (faster-whisper) or `remote` (OpenAI-compatible). |
 | `VEILLEE_WHISPER_MODEL` | `small` | Baked into the image at build time. |
 | `VEILLEE_GIT_AUTOCOMMIT` | `1` | Auto-commit `data/` on save. Never auto-pushes. |

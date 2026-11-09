@@ -1,13 +1,22 @@
-"""Runtime configuration. Everything has a working default; nothing is required."""
+"""Runtime configuration. Everything has a default except the key once a passcode is set."""
 
 from __future__ import annotations
 
 import os
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_DATA_DIR = Path("data")
 DEFAULT_DB_PATH = Path("veillee.db")
+
+# The signing key this project used to fall back to. It is public, so a cookie
+# signed with it proves nothing; it is refused outright.
+INSECURE_DEFAULT_SECRET_KEY = "veillee-local-tailnet-only"
+
+
+class ConfigError(RuntimeError):
+    """The environment describes a deployment that must not start."""
 
 
 def _env_path(name: str, default: Path) -> Path:
@@ -114,7 +123,7 @@ def load_settings() -> Settings:
         questions_dir=_env_path("VEILLEE_QUESTIONS_DIR", Path("questions")),
         passcode=passcode,
         family_passcode=os.environ.get("VEILLEE_FAMILY_PASSCODE") or None,
-        secret_key=os.environ.get("VEILLEE_SECRET_KEY") or "veillee-local-tailnet-only",
+        secret_key=os.environ.get("VEILLEE_SECRET_KEY") or "",
         transcription_backend=os.environ.get("VEILLEE_TRANSCRIPTION_BACKEND", "local"),
         whisper_model=os.environ.get("VEILLEE_WHISPER_MODEL", "small"),
         whisper_compute_type=os.environ.get("VEILLEE_WHISPER_COMPUTE_TYPE", "int8"),
@@ -127,3 +136,33 @@ def load_settings() -> Settings:
         worker_poll_seconds=float(os.environ.get("VEILLEE_WORKER_POLL_SECONDS", "3.0")),
         max_attempts=_env_int("VEILLEE_MAX_ATTEMPTS", 5),
     )
+
+
+MIN_SECRET_KEY_LENGTH = 32
+MIN_DISTINCT_KEY_CHARS = 16
+
+
+def require_session_secret(settings: Settings) -> None:
+    """Refuse to serve a passcode that a forged cookie could walk past.
+
+    The cookie is signed with `secret_key`; if that is missing, public, short
+    enough to brute-force offline from a known cookie, or equal to a passcode
+    that relatives know, anyone can mint a writer cookie. With no passcode
+    there is no auth to bypass.
+    """
+    if not (settings.passcode or settings.family_passcode):
+        return
+    # Zero-width and other format characters would pad the length for free.
+    key = "".join(c for c in settings.secret_key if unicodedata.category(c) != "Cf").strip()
+    distinct = len({c for c in key if not c.isspace()})
+    known = {INSECURE_DEFAULT_SECRET_KEY}
+    known.update(p.strip() for p in (settings.passcode, settings.family_passcode) if p)
+    if len(key) < MIN_SECRET_KEY_LENGTH or distinct < MIN_DISTINCT_KEY_CHARS or key in known:
+        raise ConfigError(
+            f"VEILLEE_SECRET_KEY must be a private random value of at least "
+            f"{MIN_SECRET_KEY_LENGTH} characters with at least {MIN_DISTINCT_KEY_CHARS} "
+            "different ones, and must differ from the old public "
+            "default and from both passcodes, whenever VEILLEE_PASSCODE or "
+            "VEILLEE_FAMILY_PASSCODE is set. Generate one with: "
+            "python3 -c 'import secrets; print(secrets.token_urlsafe(32))'"
+        )

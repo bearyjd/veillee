@@ -19,7 +19,7 @@ directory — *not* from your shell.
 | `VEILLEE_QUESTIONS_DIR` | `questions` | The question bank (read-only YAML). |
 | `VEILLEE_PASSCODE` | *(unset)* | His passcode. Unset means **no authentication at all**. |
 | `VEILLEE_FAMILY_PASSCODE` | *(unset)* | Read-only word for relatives. No writes, no transcripts. |
-| `VEILLEE_SECRET_KEY` | `veillee-local-tailnet-only` | Signs the passcode cookie. Change it if you set a passcode. |
+| `VEILLEE_SECRET_KEY` | *(unset)* | Signs the passcode cookie. **Required** when either passcode is set: the app refuses to start unless it is at least 32 characters and differs from the old public default `veillee-local-tailnet-only` and from both passcodes. It also needs at least 16 distinct characters. `scripts/up.sh` and `scripts/auto-deploy.sh` generate one into `.env` when it is missing **or set but too weak (a short custom key is replaced, not kept)**; every device is then asked for the passcode once. Generate with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'`. Rotating it logs every device out. |
 | `VEILLEE_GIT_AUTOCOMMIT` | `1` | Auto-commit `data/` on save. Never auto-pushes. |
 | `VEILLEE_MAX_UPLOAD_BYTES` | `2147483648` (2 GiB) | Upload ceiling. |
 | `VEILLEE_TRANSCRIPTION_BACKEND` | `local` | `local` (faster-whisper) or `remote`. |

@@ -44,6 +44,15 @@ docker compose ... logs app | grep -v healthz | tail -5
 
 ## It deploys itself, nightly
 
+**Upgrade step for hosts with a passcode.** The image now refuses to start when
+a passcode is set without a strong `VEILLEE_SECRET_KEY` (32+ characters, 16+
+distinct, different from both passcodes); the app log then shows the exact
+command to generate one. The nightly script only generates a key if the host's
+checkout already has the new `scripts/`, so BEFORE the next 04:00 deploy either
+run `git pull` on the host, or add `VEILLEE_SECRET_KEY=<32+ random chars>` to
+`.env` yourself (`python3 -c 'import secrets; print(secrets.token_urlsafe(32))'`).
+Skipping this makes the restarted app crash-loop.
+
 A systemd user timer on the live host runs `scripts/auto-deploy.sh` at 04:00,
 half an hour after the backup, so the night's backup is always of the version
 that was serving before the change.

@@ -65,8 +65,8 @@ def role_from_cookie(request: Request, settings: Settings) -> str | None:
         return None
     if not isinstance(payload, dict) or not payload.get("ok"):
         return None
-    role = str(payload.get("role", ROLE_WRITER))
-    return role if role in {ROLE_WRITER, ROLE_FAMILY} else ROLE_WRITER
+    role = payload.get("role")
+    return role if role in {ROLE_WRITER, ROLE_FAMILY} else None
 
 
 def has_valid_cookie(request: Request, settings: Settings) -> bool:

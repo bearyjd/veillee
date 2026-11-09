@@ -447,10 +447,14 @@ HTTP rather than by checking which buttons are visible.
 # in .env
 VEILLEE_PASSCODE=the-word-you-give-him
 VEILLEE_FAMILY_PASSCODE=the-word-you-give-everyone-else
+VEILLEE_SECRET_KEY=<output of: python3 -c 'import secrets; print(secrets.token_urlsafe(32))'>
 ```
 
 Both are off by default. Setting only the family one still requires a word from
-everybody, so set both or neither.
+everybody, so set both or neither. `VEILLEE_SECRET_KEY` is mandatory with either
+one: at least 32 characters, and not equal to a passcode. `up.sh` and
+`auto-deploy.sh` write one into `.env` if it is missing. Both passcodes and the
+key are forwarded into the container by the compose files.
 
 **The book.** `/book` lays everything out in chapter order — question, answer,
 photographs, and a note where there is a recording — and prints properly. A

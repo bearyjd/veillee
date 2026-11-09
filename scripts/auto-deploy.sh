@@ -18,6 +18,9 @@ APP_CONTAINER="${VEILLEE_APP_CONTAINER:-veillee-app-1}"
 # How recently a chunk must have landed for us to assume he is still talking.
 QUIET_MINUTES="${VEILLEE_QUIET_MINUTES:-15}"
 
+# shellcheck source=/dev/null
+source scripts/runtime.sh
+
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
 # ---- 1. Never restart out from under a recording --------------------------
@@ -46,6 +49,7 @@ fi
 
 # ---- 3. Swap, then confirm it came back -----------------------------------
 log "updating ${RUNNING:0:12} -> ${PULLED:0:12}"
+ensure_secret_key .env
 $COMPOSE up -d >/dev/null
 
 for _ in $(seq 1 30); do

@@ -15,6 +15,7 @@ import sqlite3
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 from tests.conftest import REPO_ROOT, LiveServer, free_port
@@ -555,3 +556,228 @@ def test_healthz_shape_is_what_the_morning_check_reads(live_server: LiveServer) 
     )
     for key in ("status", "disk", "queue", "last_backup", "problems"):
         assert key in payload
+
+
+class TestComposePassesAuthVariables:
+    """A variable Compose does not forward never reaches the container."""
+
+    def test_every_auth_variable_reaches_the_app(self) -> None:
+        for name in ("compose.yaml", "compose.registry.yaml"):
+            data = yaml.safe_load((REPO_ROOT / name).read_text(encoding="utf-8"))
+            env = data["services"]["app"]["environment"]
+            for var in ("VEILLEE_PASSCODE", "VEILLEE_FAMILY_PASSCODE", "VEILLEE_SECRET_KEY"):
+                assert var in env, f"{name} does not pass {var} to the app"
+
+
+GOOD_KEY = "Ab3dEf6hIj9lMn2pQr5tUv8xYz1BcDeFgHiJkLmN"
+
+
+class TestEnsureSecretKey:
+    """An upgrade must not leave a passcode install without a usable key."""
+
+    def _run(self, env_text: str | None, tmp_path: Path) -> str:
+        if env_text is not None:
+            (tmp_path / ".env").write_text(env_text, encoding="utf-8")
+        result = subprocess.run(
+            ["bash", "-c", f"source {SCRIPTS / 'runtime.sh'}; ensure_secret_key .env"],
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
+            timeout=60,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        path = tmp_path / ".env"
+        return path.read_text(encoding="utf-8") if path.exists() else ""
+
+    def _key(self, text: str) -> str:
+        return next(
+            line.split("=", 1)[1]
+            for line in text.splitlines()
+            if line.startswith("VEILLEE_SECRET_KEY=")
+        )
+
+    def test_it_generates_a_key_when_a_passcode_has_none(self, tmp_path: Path) -> None:
+        out = self._run("VEILLEE_PASSCODE=seanchai\nVEILLEE_PORT=8123\n", tmp_path)
+        assert len(self._key(out)) >= 32
+        assert "VEILLEE_PASSCODE=seanchai" in out and "VEILLEE_PORT=8123" in out
+
+    def test_it_replaces_a_too_short_key(self, tmp_path: Path) -> None:
+        out = self._run(
+            "VEILLEE_FAMILY_PASSCODE=x\nVEILLEE_SECRET_KEY=veillee-local-tailnet-only\n", tmp_path
+        )
+        assert len(self._key(out)) >= 32
+        assert out.count("VEILLEE_SECRET_KEY=") == 1
+
+    def test_it_keeps_a_good_key(self, tmp_path: Path) -> None:
+        good = GOOD_KEY
+        out = self._run(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={good}\n", tmp_path)
+        assert self._key(out) == good
+
+    def test_it_does_nothing_without_a_passcode(self, tmp_path: Path) -> None:
+        out = self._run("VEILLEE_PORT=8123\n", tmp_path)
+        assert "VEILLEE_SECRET_KEY" not in out
+
+    def test_it_does_nothing_without_an_env_file(self, tmp_path: Path) -> None:
+        assert self._run(None, tmp_path) == ""
+
+    def _rotated(self, env_text: str, old: str, tmp_path: Path) -> None:
+        """The weak key `old` must be gone and replaced by exactly one strong one."""
+        out = self._run(env_text, tmp_path)
+        assert out.count("VEILLEE_SECRET_KEY") == 1
+        assert self._key(out) != old
+        assert old not in out.replace("VEILLEE_PASSCODE", "").split("VEILLEE_SECRET_KEY=")[1]
+        assert len(self._key(out)) >= 32
+
+    def _kept(self, env_text: str, tmp_path: Path) -> None:
+        assert self._run(env_text, tmp_path) == env_text
+
+    def test_31_chars_inside_double_quotes_is_too_short(self, tmp_path: Path) -> None:
+        old = "abcdefghijklmnopqrstuvwxyzABCDE"
+        self._rotated(f'VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY="{old}"\n', old, tmp_path)
+
+    def test_31_chars_inside_single_quotes_is_too_short(self, tmp_path: Path) -> None:
+        old = "abcdefghijklmnopqrstuvwxyzABCDE"
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY='{old}'\n", old, tmp_path)
+
+    def test_32_chars_inside_quotes_is_kept(self, tmp_path: Path) -> None:
+        self._kept(f'VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY="{GOOD_KEY}"\n', tmp_path)
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY='{GOOD_KEY}'\n", tmp_path)
+
+    def test_31_chars_plus_trailing_spaces_is_too_short(self, tmp_path: Path) -> None:
+        old = "abcdefghijklmnopqrstuvwxyzABCDE"
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old}   \n", old, tmp_path)
+
+    def test_a_key_equal_to_the_passcode_is_rotated(self, tmp_path: Path) -> None:
+        self._rotated(
+            f"VEILLEE_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n", GOOD_KEY, tmp_path
+        )
+
+    def test_a_key_equal_to_the_family_passcode_is_rotated(self, tmp_path: Path) -> None:
+        self._rotated(
+            f"VEILLEE_FAMILY_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n",
+            GOOD_KEY,
+            tmp_path,
+        )
+
+    def test_a_good_key_with_trailing_spaces_is_kept(self, tmp_path: Path) -> None:
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={GOOD_KEY}   \n", tmp_path)
+
+    def test_a_low_variety_key_is_rotated(self, tmp_path: Path) -> None:
+        old = "a" * 40
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old}\n", old, tmp_path)
+
+    def test_an_inline_comment_does_not_count_towards_length(self, tmp_path: Path) -> None:
+        old = "short"
+        self._rotated(
+            f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old} # {'padding ' * 8}\n", old, tmp_path
+        )
+
+    def test_a_good_key_with_an_inline_comment_is_kept(self, tmp_path: Path) -> None:
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={GOOD_KEY} # rotate yearly\n", tmp_path)
+
+    def test_a_passcode_with_an_inline_comment_is_compared_without_it(self, tmp_path: Path) -> None:
+        self._rotated(
+            f"VEILLEE_PASSCODE={GOOD_KEY} # his word\nVEILLEE_SECRET_KEY={GOOD_KEY}\n",
+            GOOD_KEY,
+            tmp_path,
+        )
+
+    def test_an_empty_passcode_with_a_comment_means_no_passcode(self, tmp_path: Path) -> None:
+        self._kept("VEILLEE_PASSCODE= # off for now\nVEILLEE_PORT=8123\n", tmp_path)
+
+    @pytest.mark.parametrize("pad", ["\u00a0", "\u200b", "$"], ids=["nbsp", "zero-width", "dollar"])
+    def test_a_key_padded_with_an_unsafe_character_is_rotated(
+        self, pad: str, tmp_path: Path
+    ) -> None:
+        old = GOOD_KEY[:31] + pad
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old}\n", old, tmp_path)
+
+    def test_a_leading_space_passcode_line_is_recognised(self, tmp_path: Path) -> None:
+        out = self._run("  VEILLEE_PASSCODE=seanchai\n", tmp_path)
+        assert len(self._key(out)) >= 32
+
+    def test_spaces_around_equals_and_an_indented_weak_key_are_replaced(
+        self, tmp_path: Path
+    ) -> None:
+        self._rotated("VEILLEE_PASSCODE = x\n  VEILLEE_SECRET_KEY = short\n", "short", tmp_path)
+
+    def test_spaces_around_equals_on_a_good_key_keep_it(self, tmp_path: Path) -> None:
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY = {GOOD_KEY}\n", tmp_path)
+
+    def test_an_exported_passcode_is_recognised(self, tmp_path: Path) -> None:
+        out = self._run("export VEILLEE_PASSCODE=seanchai\n", tmp_path)
+        assert len(self._key(out)) >= 32
+
+    def test_an_exported_good_key_is_kept_and_not_duplicated(self, tmp_path: Path) -> None:
+        out = self._run(f"VEILLEE_PASSCODE=x\nexport VEILLEE_SECRET_KEY={GOOD_KEY}\n", tmp_path)
+        assert out.count("VEILLEE_SECRET_KEY=") == 1
+        assert GOOD_KEY in out
+
+    def test_an_exported_weak_key_is_replaced_not_appended_to(self, tmp_path: Path) -> None:
+        out = self._run("VEILLEE_PASSCODE=x\nexport VEILLEE_SECRET_KEY=short\n", tmp_path)
+        assert out.count("VEILLEE_SECRET_KEY=") == 1
+        assert "short" not in out
+
+    def test_a_private_env_file_stays_private(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        (tmp_path / ".env").chmod(0o600)
+        self._run(None, tmp_path)
+        assert ((tmp_path / ".env").stat().st_mode & 0o777) == 0o600
+        assert list(tmp_path.glob(".env.*")) == []
+
+    def test_a_group_readable_env_file_keeps_its_mode(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        (tmp_path / ".env").chmod(0o640)
+        self._run(None, tmp_path)
+        assert ((tmp_path / ".env").stat().st_mode & 0o777) == 0o640
+
+
+class TestAtomicWrite:
+    def _sh(self, snippet: str, tmp_path: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["bash", "-c", f"source {SCRIPTS / 'runtime.sh'}; {snippet}"],
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
+            timeout=60,
+            check=False,
+        )
+
+    def test_a_failed_write_leaves_no_temp_file_and_the_original_intact(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        result = self._sh("mv() { return 1; }; echo new | atomic_write .env", tmp_path)
+        assert result.returncode != 0
+        assert (tmp_path / ".env").read_text(encoding="utf-8") == "VEILLEE_PASSCODE=x\n"
+        assert sorted(p.name for p in tmp_path.iterdir()) == [".env"]
+
+    def test_a_symlinked_env_file_is_written_through(self, tmp_path: Path) -> None:
+        real = tmp_path / "real.env"
+        real.write_text("old\n", encoding="utf-8")
+        real.chmod(0o640)
+        (tmp_path / ".env").symlink_to(real)
+        assert self._sh("echo new | atomic_write .env", tmp_path).returncode == 0
+        assert (tmp_path / ".env").is_symlink()
+        assert real.read_text(encoding="utf-8") == "new\n"
+        assert (real.stat().st_mode & 0o777) == 0o640
+
+
+class TestWriteEnvFileMode:
+    def _write(self, tmp_path: Path) -> Path:
+        subprocess.run(
+            ["bash", "-c", f"source {SCRIPTS / 'runtime.sh'}; write_env_file .env 0 8123"],
+            cwd=str(tmp_path),
+            timeout=60,
+            check=True,
+        )
+        return tmp_path / ".env"
+
+    def test_an_existing_600_file_stays_600(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        (tmp_path / ".env").chmod(0o600)
+        assert (self._write(tmp_path).stat().st_mode & 0o777) == 0o600
+
+    def test_a_new_file_is_600(self, tmp_path: Path) -> None:
+        assert (self._write(tmp_path).stat().st_mode & 0o777) == 0o600

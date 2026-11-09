@@ -21,6 +21,7 @@ elif ! port_is_free "$PORT"; then
 fi
 
 write_env_file .env "$RUN_AS" "$PORT"
+ensure_secret_key .env
 mkdir -p data
 
 echo "Runtime:               $COMPOSE"
