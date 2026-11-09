@@ -52,6 +52,27 @@ write_env_file() {
   mv "$target.tmp" "$target"
 }
 
+# Make sure a deployment with a passcode has a usable VEILLEE_SECRET_KEY in the
+# env file: the app refuses to start without one (at least 32 characters). A
+# missing or too-short key is replaced with a fresh random one; a good key is
+# left alone. Does nothing when no passcode is set or the file does not exist.
+# Always succeeds, for the same `set -e` reason as configured_port.
+ensure_secret_key() {
+  local target="${1:-.env}" key
+  [ -f "$target" ] || return 0
+  grep -qE '^VEILLEE_(FAMILY_)?PASSCODE=.+' "$target" || return 0
+  key="$(grep -E '^VEILLEE_SECRET_KEY=' "$target" | tail -1 | cut -d= -f2- || true)"
+  [ "${#key}" -ge 32 ] && return 0
+  key="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')"
+  {
+    grep -vE '^VEILLEE_SECRET_KEY=' "$target" || true
+    printf 'VEILLEE_SECRET_KEY=%s\n' "$key"
+  } > "$target.tmp"
+  mv "$target.tmp" "$target"
+  echo "Generated a new VEILLEE_SECRET_KEY in $target (devices will be asked for the passcode once)." >&2
+  return 0
+}
+
 # The port already chosen for this deployment, or empty if none has been.
 # Always succeeds: callers run under `set -e`, where a non-zero return from a
 # command substitution would abort the whole script.

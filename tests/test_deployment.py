@@ -555,3 +555,64 @@ def test_healthz_shape_is_what_the_morning_check_reads(live_server: LiveServer) 
     )
     for key in ("status", "disk", "queue", "last_backup", "problems"):
         assert key in payload
+
+
+class TestComposePassesAuthVariables:
+    """A variable Compose does not forward never reaches the container."""
+
+    def test_every_auth_variable_reaches_the_app(self) -> None:
+        for name in ("compose.yaml", "compose.registry.yaml"):
+            data = yaml.safe_load((REPO_ROOT / name).read_text(encoding="utf-8"))
+            env = data["services"]["app"]["environment"]
+            for var in ("VEILLEE_PASSCODE", "VEILLEE_FAMILY_PASSCODE", "VEILLEE_SECRET_KEY"):
+                assert var in env, f"{name} does not pass {var} to the app"
+
+
+class TestEnsureSecretKey:
+    """An upgrade must not leave a passcode install without a usable key."""
+
+    def _run(self, env_text: str | None, tmp_path: Path) -> str:
+        if env_text is not None:
+            (tmp_path / ".env").write_text(env_text, encoding="utf-8")
+        result = subprocess.run(
+            ["bash", "-c", f"source {SCRIPTS / 'runtime.sh'}; ensure_secret_key .env"],
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
+            timeout=60,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        path = tmp_path / ".env"
+        return path.read_text(encoding="utf-8") if path.exists() else ""
+
+    def _key(self, text: str) -> str:
+        return next(
+            line.split("=", 1)[1]
+            for line in text.splitlines()
+            if line.startswith("VEILLEE_SECRET_KEY=")
+        )
+
+    def test_it_generates_a_key_when_a_passcode_has_none(self, tmp_path: Path) -> None:
+        out = self._run("VEILLEE_PASSCODE=seanchai\nVEILLEE_PORT=8123\n", tmp_path)
+        assert len(self._key(out)) >= 32
+        assert "VEILLEE_PASSCODE=seanchai" in out and "VEILLEE_PORT=8123" in out
+
+    def test_it_replaces_a_too_short_key(self, tmp_path: Path) -> None:
+        out = self._run(
+            "VEILLEE_FAMILY_PASSCODE=x\nVEILLEE_SECRET_KEY=veillee-local-tailnet-only\n", tmp_path
+        )
+        assert len(self._key(out)) >= 32
+        assert out.count("VEILLEE_SECRET_KEY=") == 1
+
+    def test_it_keeps_a_good_key(self, tmp_path: Path) -> None:
+        good = "g" * 40
+        out = self._run(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={good}\n", tmp_path)
+        assert self._key(out) == good
+
+    def test_it_does_nothing_without_a_passcode(self, tmp_path: Path) -> None:
+        out = self._run("VEILLEE_PORT=8123\n", tmp_path)
+        assert "VEILLEE_SECRET_KEY" not in out
+
+    def test_it_does_nothing_without_an_env_file(self, tmp_path: Path) -> None:
+        assert self._run(None, tmp_path) == ""

@@ -174,7 +174,10 @@ def live_server_with_passcode(tmp_path: Path) -> Iterator[LiveServer]:
     """The optional single passcode, so its page can be tested too."""
     yield from _start_server(
         tmp_path,
-        {"VEILLEE_PASSCODE": "seanchai", "VEILLEE_SECRET_KEY": "test-key-not-a-secret"},
+        {
+            "VEILLEE_PASSCODE": "seanchai",
+            "VEILLEE_SECRET_KEY": "test-key-not-a-secret-but-32-chars-long",
+        },
     )
 
 
@@ -192,6 +195,6 @@ def live_server_with_family(tmp_path: Path) -> Iterator[LiveServer]:
         {
             "VEILLEE_PASSCODE": "seanchai",
             "VEILLEE_FAMILY_PASSCODE": "cousins",
-            "VEILLEE_SECRET_KEY": "test-key-not-a-secret",
+            "VEILLEE_SECRET_KEY": "test-key-not-a-secret-but-32-chars-long",
         },
     )

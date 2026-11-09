@@ -137,18 +137,27 @@ def load_settings() -> Settings:
     )
 
 
+MIN_SECRET_KEY_LENGTH = 32
+
+
 def require_session_secret(settings: Settings) -> None:
     """Refuse to serve a passcode that a forged cookie could walk past.
 
-    The cookie is signed with `secret_key`; if that is missing or public, anyone
-    can mint a writer cookie. With no passcode there is no auth to bypass.
+    The cookie is signed with `secret_key`; if that is missing, public, short
+    enough to brute-force offline from a known cookie, or equal to a passcode
+    that relatives know, anyone can mint a writer cookie. With no passcode
+    there is no auth to bypass.
     """
     if not (settings.passcode or settings.family_passcode):
         return
-    if not settings.secret_key.strip() or settings.secret_key == INSECURE_DEFAULT_SECRET_KEY:
+    key = settings.secret_key.strip()
+    known = {INSECURE_DEFAULT_SECRET_KEY}
+    known.update(p.strip() for p in (settings.passcode, settings.family_passcode) if p)
+    if len(key) < MIN_SECRET_KEY_LENGTH or key in known:
         raise ConfigError(
-            "VEILLEE_SECRET_KEY must be set to a private random value when "
-            "VEILLEE_PASSCODE or VEILLEE_FAMILY_PASSCODE is set (it is missing, or "
-            "equals the old public default). Generate one with: "
+            f"VEILLEE_SECRET_KEY must be a private random value of at least "
+            f"{MIN_SECRET_KEY_LENGTH} characters, and must differ from the old public "
+            "default and from both passcodes, whenever VEILLEE_PASSCODE or "
+            "VEILLEE_FAMILY_PASSCODE is set. Generate one with: "
             "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
         )
