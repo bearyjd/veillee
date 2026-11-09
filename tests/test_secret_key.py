@@ -47,7 +47,15 @@ class TestStartupRefusesAWeakKey:
 
     @pytest.mark.parametrize(
         "key",
-        ["a", "k" * 31, f"  {OLD_DEFAULT}  ", f"  {OLD_DEFAULT}" + " " * 10],
+        [
+            "a",
+            "k" * 31,
+            f"  {OLD_DEFAULT}  ",
+            f"  {OLD_DEFAULT}" + " " * 10,
+            "a" * 64,  # long but only one distinct character
+            "ab" * 30,  # long but only two distinct characters
+            "abcdefghijklmnop" + "\u200b" * 20,  # 16 real characters padded with Cf
+        ],
     )
     def test_a_short_or_padded_key_is_refused(
         self, monkeypatch: pytest.MonkeyPatch, key: str

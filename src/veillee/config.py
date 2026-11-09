@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -138,6 +139,7 @@ def load_settings() -> Settings:
 
 
 MIN_SECRET_KEY_LENGTH = 32
+MIN_DISTINCT_KEY_CHARS = 16
 
 
 def require_session_secret(settings: Settings) -> None:
@@ -150,13 +152,16 @@ def require_session_secret(settings: Settings) -> None:
     """
     if not (settings.passcode or settings.family_passcode):
         return
-    key = settings.secret_key.strip()
+    # Zero-width and other format characters would pad the length for free.
+    key = "".join(c for c in settings.secret_key if unicodedata.category(c) != "Cf").strip()
+    distinct = len({c for c in key if not c.isspace()})
     known = {INSECURE_DEFAULT_SECRET_KEY}
     known.update(p.strip() for p in (settings.passcode, settings.family_passcode) if p)
-    if len(key) < MIN_SECRET_KEY_LENGTH or key in known:
+    if len(key) < MIN_SECRET_KEY_LENGTH or distinct < MIN_DISTINCT_KEY_CHARS or key in known:
         raise ConfigError(
             f"VEILLEE_SECRET_KEY must be a private random value of at least "
-            f"{MIN_SECRET_KEY_LENGTH} characters, and must differ from the old public "
+            f"{MIN_SECRET_KEY_LENGTH} characters with at least {MIN_DISTINCT_KEY_CHARS} "
+            "different ones, and must differ from the old public "
             "default and from both passcodes, whenever VEILLEE_PASSCODE or "
             "VEILLEE_FAMILY_PASSCODE is set. Generate one with: "
             "python -c 'import secrets; print(secrets.token_urlsafe(32))'"

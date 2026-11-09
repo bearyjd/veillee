@@ -568,6 +568,9 @@ class TestComposePassesAuthVariables:
                 assert var in env, f"{name} does not pass {var} to the app"
 
 
+GOOD_KEY = "Ab3dEf6hIj9lMn2pQr5tUv8xYz1BcDeFgHiJkLmN"
+
+
 class TestEnsureSecretKey:
     """An upgrade must not leave a passcode install without a usable key."""
 
@@ -606,7 +609,7 @@ class TestEnsureSecretKey:
         assert out.count("VEILLEE_SECRET_KEY=") == 1
 
     def test_it_keeps_a_good_key(self, tmp_path: Path) -> None:
-        good = "g" * 40
+        good = GOOD_KEY
         out = self._run(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={good}\n", tmp_path)
         assert self._key(out) == good
 
@@ -616,3 +619,74 @@ class TestEnsureSecretKey:
 
     def test_it_does_nothing_without_an_env_file(self, tmp_path: Path) -> None:
         assert self._run(None, tmp_path) == ""
+
+    def _rotated(self, env_text: str, tmp_path: Path) -> None:
+        out = self._run(env_text, tmp_path)
+        assert out.count("VEILLEE_SECRET_KEY=") == 1
+        assert len(self._key(out)) >= 32
+
+    def test_31_chars_inside_quotes_is_too_short(self, tmp_path: Path) -> None:
+        self._rotated(
+            f'VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY="{"abcdefghijklmnopqrstuvwxyzABCDE"}"\n',
+            tmp_path,
+        )
+
+    def test_31_chars_plus_trailing_spaces_is_too_short(self, tmp_path: Path) -> None:
+        self._rotated(
+            "VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY=abcdefghijklmnopqrstuvwxyzABCDE   \n", tmp_path
+        )
+
+    def test_a_key_equal_to_a_long_passcode_is_rotated(self, tmp_path: Path) -> None:
+        self._rotated(f"VEILLEE_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n", tmp_path)
+        self._rotated(
+            f"VEILLEE_FAMILY_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n", tmp_path
+        )
+
+    def test_a_low_variety_key_is_rotated(self, tmp_path: Path) -> None:
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={'a' * 40}\n", tmp_path)
+
+    def test_an_exported_passcode_is_recognised(self, tmp_path: Path) -> None:
+        out = self._run("export VEILLEE_PASSCODE=seanchai\n", tmp_path)
+        assert len(self._key(out)) >= 32
+
+    def test_an_exported_good_key_is_kept_and_not_duplicated(self, tmp_path: Path) -> None:
+        out = self._run(f"VEILLEE_PASSCODE=x\nexport VEILLEE_SECRET_KEY={GOOD_KEY}\n", tmp_path)
+        assert out.count("VEILLEE_SECRET_KEY=") == 1
+        assert GOOD_KEY in out
+
+    def test_an_exported_weak_key_is_replaced_not_appended_to(self, tmp_path: Path) -> None:
+        out = self._run("VEILLEE_PASSCODE=x\nexport VEILLEE_SECRET_KEY=short\n", tmp_path)
+        assert out.count("VEILLEE_SECRET_KEY=") == 1
+        assert "short" not in out
+
+    def test_a_private_env_file_stays_private(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        (tmp_path / ".env").chmod(0o600)
+        self._run(None, tmp_path)
+        assert ((tmp_path / ".env").stat().st_mode & 0o777) == 0o600
+        assert list(tmp_path.glob(".env.*")) == []
+
+    def test_a_group_readable_env_file_keeps_its_mode(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        (tmp_path / ".env").chmod(0o640)
+        self._run(None, tmp_path)
+        assert ((tmp_path / ".env").stat().st_mode & 0o777) == 0o640
+
+
+class TestWriteEnvFileMode:
+    def _write(self, tmp_path: Path) -> Path:
+        subprocess.run(
+            ["bash", "-c", f"source {SCRIPTS / 'runtime.sh'}; write_env_file .env 0 8123"],
+            cwd=str(tmp_path),
+            timeout=60,
+            check=True,
+        )
+        return tmp_path / ".env"
+
+    def test_an_existing_600_file_stays_600(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        (tmp_path / ".env").chmod(0o600)
+        assert (self._write(tmp_path).stat().st_mode & 0o777) == 0o600
+
+    def test_a_new_file_is_600(self, tmp_path: Path) -> None:
+        assert (self._write(tmp_path).stat().st_mode & 0o777) == 0o600

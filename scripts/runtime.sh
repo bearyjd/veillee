@@ -48,28 +48,62 @@ write_env_file() {
     [ -n "$existing" ] && printf '%s\n' "$existing"
     printf 'VEILLEE_RUN_AS=%s\n' "$run_as"
     [ -n "$port" ] && printf 'VEILLEE_PORT=%s\n' "$port"
-  } > "$target.tmp"
-  mv "$target.tmp" "$target"
+  } | atomic_write "$target"
+}
+
+# Replace $1 with stdin, atomically, keeping its permissions. The env file holds
+# passcodes and the signing key, so a new file is 600 and an existing file keeps
+# whatever mode it had; the temp file is never world-readable, even briefly.
+atomic_write() {
+  local target="$1" tmp
+  tmp="$(umask 077; mktemp "$target.XXXXXX")" || return 1
+  cat > "$tmp"
+  if [ -f "$target" ]; then
+    chmod --reference="$target" "$tmp" 2>/dev/null || chmod 600 "$tmp"
+  else
+    chmod 600 "$tmp"
+  fi
+  mv "$tmp" "$target"
+}
+
+# The value of VEILLEE_* variable $1 in env file $2, as Compose would read it:
+# the last assignment wins, an optional `export ` is ignored, and surrounding
+# whitespace and one pair of quotes are removed. Empty if unset.
+env_file_value() {
+  local v
+  v="$(grep -E "^(export[[:space:]]+)?$1=" "$2" | tail -1 | sed -E 's/^(export[[:space:]]+)?[A-Z_]+=//' || true)"
+  v="$(printf '%s' "$v" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  case "$v" in
+    \"*\") v="${v#\"}"; v="${v%\"}" ;;
+    \'*\') v="${v#\'}"; v="${v%\'}" ;;
+  esac
+  printf '%s' "$v" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'
 }
 
 # Make sure a deployment with a passcode has a usable VEILLEE_SECRET_KEY in the
-# env file: the app refuses to start without one (at least 32 characters). A
-# missing or too-short key is replaced with a fresh random one; a good key is
-# left alone. Does nothing when no passcode is set or the file does not exist.
-# Always succeeds, for the same `set -e` reason as configured_port.
+# env file. The app refuses to start otherwise: the key must be at least 32
+# characters, have at least 16 distinct ones, and differ from both passcodes.
+# A missing key, or a key that is set but too weak, is REPLACED with a fresh
+# random one, and every device is then asked for the passcode once. A good key
+# is left alone. Does nothing when no passcode is set or the file does not
+# exist. Always succeeds, for the same `set -e` reason as configured_port.
 ensure_secret_key() {
-  local target="${1:-.env}" key
+  local target="${1:-.env}" key pass family distinct
   [ -f "$target" ] || return 0
-  grep -qE '^VEILLEE_(FAMILY_)?PASSCODE=.+' "$target" || return 0
-  key="$(grep -E '^VEILLEE_SECRET_KEY=' "$target" | tail -1 | cut -d= -f2- || true)"
-  [ "${#key}" -ge 32 ] && return 0
+  pass="$(env_file_value VEILLEE_PASSCODE "$target")"
+  family="$(env_file_value VEILLEE_FAMILY_PASSCODE "$target")"
+  [ -n "$pass$family" ] || return 0
+  key="$(env_file_value VEILLEE_SECRET_KEY "$target")"
+  distinct="$(printf '%s' "$key" | fold -w1 | sort -u | wc -l)"
+  if [ "${#key}" -ge 32 ] && [ "$distinct" -ge 16 ] && [ "$key" != "$pass" ] && [ "$key" != "$family" ]; then
+    return 0
+  fi
   key="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')"
   {
-    grep -vE '^VEILLEE_SECRET_KEY=' "$target" || true
+    grep -vE '^(export[[:space:]]+)?VEILLEE_SECRET_KEY=' "$target" || true
     printf 'VEILLEE_SECRET_KEY=%s\n' "$key"
-  } > "$target.tmp"
-  mv "$target.tmp" "$target"
-  echo "Generated a new VEILLEE_SECRET_KEY in $target (devices will be asked for the passcode once)." >&2
+  } | atomic_write "$target"
+  echo "Replaced VEILLEE_SECRET_KEY in $target (it was missing or too weak, including a short custom key); every device will be asked for the passcode once." >&2
   return 0
 }
 
