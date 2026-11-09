@@ -76,7 +76,8 @@ atomic_write() {
 # The value of variable $1 in env file $2, read the way Compose does: the last
 # assignment wins; leading whitespace, an optional `export ` and spaces around
 # `=` are ignored; a quoted value ends at its closing quote; an unquoted value
-# ends at a ` #` comment and loses trailing whitespace. Empty if unset.
+# ends at a ` #` comment (never one at the very start of the value, so Compose
+# reads `FOO= # x` as the literal `# x`) and loses trailing whitespace. Empty if unset.
 env_file_value() {
   local v
   v="$(grep -E "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" "$2" | tail -1 \
@@ -84,7 +85,7 @@ env_file_value() {
   case "$v" in
     \"*) v="${v#\"}"; v="${v%%\"*}" ;;
     \'*) v="${v#\'}"; v="${v%%\'*}" ;;
-    *) v="$(printf '%s' "$v" | sed -E 's/(^|[[:space:]]+)#.*$//; s/[[:space:]]+$//')" ;;
+    *) v="$(printf '%s' "$v" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//')" ;;
   esac
   printf '%s' "$v"
 }
@@ -93,6 +94,9 @@ env_file_value() {
 # characters, at least 16 distinct, and only plain ASCII that survives Compose
 # and the app's own trimming unchanged (so no whitespace, `$`, NBSP or
 # zero-width characters, which the shell and the app would measure differently).
+# A valid-looking key that breaks this is rotated once: spaces or quotes inside
+# it, `$` inside quotes, `#`, non-ASCII such as é, anything outside the 77
+# ASCII characters [A-Za-z0-9] and _.,:;@%^*+=/!~-
 secret_key_is_strong() {
   local key="$1" distinct
   [ "${#key}" -ge 32 ] || return 1
@@ -109,21 +113,31 @@ secret_key_is_strong() {
 # is left alone. Does nothing when no passcode is set or the file does not
 # exist. Always succeeds, for the same `set -e` reason as configured_port.
 ensure_secret_key() {
-  local target="${1:-.env}" key pass family
+  local target="${1:-.env}" key pass family kept rc
   [ -f "$target" ] || return 0
   pass="$(env_file_value VEILLEE_PASSCODE "$target")"
   family="$(env_file_value VEILLEE_FAMILY_PASSCODE "$target")"
   [ -n "$pass$family" ] || return 0
   key="$(env_file_value VEILLEE_SECRET_KEY "$target")"
+  # The app strips both passcodes before comparing them with the key.
+  pass="$(printf '%s' "$pass" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  family="$(printf '%s' "$family" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
   if secret_key_is_strong "$key" && [ "$key" != "$pass" ] && [ "$key" != "$family" ]; then
+    return 0
+  fi
+  # Read the rest of the file first: grep exits 1 for "no lines left" (fine) but
+  # 2 or more for a read error, and then writing would leave only the new key.
+  kept="$(grep -vE '^[[:space:]]*(export[[:space:]]+)?VEILLEE_SECRET_KEY[[:space:]]*=' "$target")" && rc=0 || rc=$?
+  if [ "$rc" -gt 1 ]; then
+    echo "Could not read $target (grep exit $rc); left it unchanged. Fix its permissions and re-run." >&2
     return 0
   fi
   key="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')"
   {
-    grep -vE '^[[:space:]]*(export[[:space:]]+)?VEILLEE_SECRET_KEY[[:space:]]*=' "$target" || true
+    [ -n "$kept" ] && printf '%s\n' "$kept"
     printf 'VEILLEE_SECRET_KEY=%s\n' "$key"
   } | atomic_write "$target"
-  echo "Replaced VEILLEE_SECRET_KEY in $target (it was missing or too weak, including a short custom key); every device will be asked for the passcode once." >&2
+  echo "Replaced VEILLEE_SECRET_KEY in $target (it was missing or too weak, including a short custom key, or it held a space, quote, '#', '$' inside quotes, non-ASCII such as e-acute, or any character outside A-Za-z0-9 and _.,:;@%^*+=/!~-); every device will be asked for the passcode once." >&2
   return 0
 }
 
