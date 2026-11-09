@@ -1,5 +1,5 @@
 # One image, two roles: the site and the transcription worker.
-FROM docker.io/library/python:3.12-slim-bookworm
+FROM docker.io/library/python:3.15-slim-bookworm
 
 # ffmpeg does every transcode; git versions data/ from inside the container.
 RUN apt-get update && apt-get install -y --no-install-recommends \
