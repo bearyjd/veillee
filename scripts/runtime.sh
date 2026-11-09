@@ -51,33 +51,54 @@ write_env_file() {
   } | atomic_write "$target"
 }
 
-# Replace $1 with stdin, atomically, keeping its permissions. The env file holds
-# passcodes and the signing key, so a new file is 600 and an existing file keeps
-# whatever mode it had; the temp file is never world-readable, even briefly.
+# Replace $1 with stdin, atomically, keeping its permissions (and, as root, its
+# owner). The env file holds passcodes and the signing key, so a new file is 600
+# and an existing file keeps whatever mode it had; the temp file is never
+# world-readable, even briefly, and is removed if anything goes wrong. A symlinked
+# env file is written through, so the link itself survives.
 atomic_write() {
-  local target="$1" tmp
-  tmp="$(umask 077; mktemp "$target.XXXXXX")" || return 1
-  cat > "$tmp"
-  if [ -f "$target" ]; then
-    chmod --reference="$target" "$tmp" 2>/dev/null || chmod 600 "$tmp"
-  else
-    chmod 600 "$tmp"
-  fi
-  mv "$tmp" "$target"
+  local target="$1"
+  [ -L "$target" ] && target="$(readlink -f "$target")"
+  (
+    tmp="$(umask 077; mktemp "$target.XXXXXX")" || exit 1
+    trap 'rm -f "$tmp"' EXIT
+    cat > "$tmp" || exit 1
+    if [ -f "$target" ]; then
+      chmod --reference="$target" "$tmp" 2>/dev/null || chmod 600 "$tmp"
+      chown --reference="$target" "$tmp" 2>/dev/null || true
+    else
+      chmod 600 "$tmp"
+    fi
+    mv "$tmp" "$target"
+  )
 }
 
-# The value of VEILLEE_* variable $1 in env file $2, as Compose would read it:
-# the last assignment wins, an optional `export ` is ignored, and surrounding
-# whitespace and one pair of quotes are removed. Empty if unset.
+# The value of variable $1 in env file $2, read the way Compose does: the last
+# assignment wins; leading whitespace, an optional `export ` and spaces around
+# `=` are ignored; a quoted value ends at its closing quote; an unquoted value
+# ends at a ` #` comment and loses trailing whitespace. Empty if unset.
 env_file_value() {
   local v
-  v="$(grep -E "^(export[[:space:]]+)?$1=" "$2" | tail -1 | sed -E 's/^(export[[:space:]]+)?[A-Z_]+=//' || true)"
-  v="$(printf '%s' "$v" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  v="$(grep -E "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" "$2" | tail -1 \
+    | sed -E 's/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_]+[[:space:]]*=[[:space:]]*//' || true)"
   case "$v" in
-    \"*\") v="${v#\"}"; v="${v%\"}" ;;
-    \'*\') v="${v#\'}"; v="${v%\'}" ;;
+    \"*) v="${v#\"}"; v="${v%%\"*}" ;;
+    \'*) v="${v#\'}"; v="${v%%\'*}" ;;
+    *) v="$(printf '%s' "$v" | sed -E 's/(^|[[:space:]]+)#.*$//; s/[[:space:]]+$//')" ;;
   esac
-  printf '%s' "$v" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'
+  printf '%s' "$v"
+}
+
+# True when $1 is something the app will accept as a signing key: at least 32
+# characters, at least 16 distinct, and only plain ASCII that survives Compose
+# and the app's own trimming unchanged (so no whitespace, `$`, NBSP or
+# zero-width characters, which the shell and the app would measure differently).
+secret_key_is_strong() {
+  local key="$1" distinct
+  [ "${#key}" -ge 32 ] || return 1
+  printf '%s' "$key" | LC_ALL=C grep -qE '^[A-Za-z0-9_.,:;@%^*+=/!~-]+$' || return 1
+  distinct="$(printf '%s' "$key" | fold -w1 | sort -u | wc -l)"
+  [ "$distinct" -ge 16 ]
 }
 
 # Make sure a deployment with a passcode has a usable VEILLEE_SECRET_KEY in the
@@ -88,19 +109,18 @@ env_file_value() {
 # is left alone. Does nothing when no passcode is set or the file does not
 # exist. Always succeeds, for the same `set -e` reason as configured_port.
 ensure_secret_key() {
-  local target="${1:-.env}" key pass family distinct
+  local target="${1:-.env}" key pass family
   [ -f "$target" ] || return 0
   pass="$(env_file_value VEILLEE_PASSCODE "$target")"
   family="$(env_file_value VEILLEE_FAMILY_PASSCODE "$target")"
   [ -n "$pass$family" ] || return 0
   key="$(env_file_value VEILLEE_SECRET_KEY "$target")"
-  distinct="$(printf '%s' "$key" | fold -w1 | sort -u | wc -l)"
-  if [ "${#key}" -ge 32 ] && [ "$distinct" -ge 16 ] && [ "$key" != "$pass" ] && [ "$key" != "$family" ]; then
+  if secret_key_is_strong "$key" && [ "$key" != "$pass" ] && [ "$key" != "$family" ]; then
     return 0
   fi
   key="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')"
   {
-    grep -vE '^(export[[:space:]]+)?VEILLEE_SECRET_KEY=' "$target" || true
+    grep -vE '^[[:space:]]*(export[[:space:]]+)?VEILLEE_SECRET_KEY[[:space:]]*=' "$target" || true
     printf 'VEILLEE_SECRET_KEY=%s\n' "$key"
   } | atomic_write "$target"
   echo "Replaced VEILLEE_SECRET_KEY in $target (it was missing or too weak, including a short custom key); every device will be asked for the passcode once." >&2

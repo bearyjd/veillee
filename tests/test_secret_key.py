@@ -7,6 +7,7 @@ sign a `role: writer` cookie offline and walk past the passcode.
 from __future__ import annotations
 
 import secrets
+import string
 
 import httpx
 import pytest
@@ -17,6 +18,7 @@ from veillee.config import ConfigError, Settings, load_settings
 from veillee.web.app import create_app
 
 OLD_DEFAULT = "veillee-local-tailnet-only"
+GOOD_PASSCODE = string.ascii_letters[:40]  # long and varied: only equality can reject it
 
 
 def _settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> Settings:
@@ -65,7 +67,7 @@ class TestStartupRefusesAWeakKey:
             create_app(resolved)
 
     def test_a_key_equal_to_the_passcode_is_refused(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        word = "p" * 40
+        word = GOOD_PASSCODE
         resolved = _settings(monkeypatch, VEILLEE_PASSCODE=word, VEILLEE_SECRET_KEY=f" {word} ")
         with pytest.raises(ConfigError, match="VEILLEE_SECRET_KEY"):
             create_app(resolved)
@@ -73,7 +75,7 @@ class TestStartupRefusesAWeakKey:
     def test_a_key_equal_to_the_family_passcode_is_refused(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        word = "f" * 40
+        word = GOOD_PASSCODE
         resolved = _settings(
             monkeypatch,
             VEILLEE_PASSCODE="x",
@@ -82,6 +84,30 @@ class TestStartupRefusesAWeakKey:
         )
         with pytest.raises(ConfigError, match="VEILLEE_SECRET_KEY"):
             create_app(resolved)
+
+    def test_a_key_of_31_distinct_characters_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        key = string.ascii_letters[:31]
+        with pytest.raises(ConfigError, match="32"):
+            create_app(_settings(monkeypatch, VEILLEE_PASSCODE="x", VEILLEE_SECRET_KEY=key))
+
+    def test_a_key_of_32_distinct_characters_starts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        key = string.ascii_letters[:32]
+        create_app(_settings(monkeypatch, VEILLEE_PASSCODE="x", VEILLEE_SECRET_KEY=key))
+
+    def test_a_key_with_15_distinct_characters_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        key = (string.ascii_letters[:15] * 3)[:45]
+        with pytest.raises(ConfigError, match="different"):
+            create_app(_settings(monkeypatch, VEILLEE_PASSCODE="x", VEILLEE_SECRET_KEY=key))
+
+    def test_a_key_with_16_distinct_characters_starts(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        key = (string.ascii_letters[:16] * 3)[:48]
+        create_app(_settings(monkeypatch, VEILLEE_PASSCODE="x", VEILLEE_SECRET_KEY=key))
 
     def test_an_explicit_key_starts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         key = secrets.token_urlsafe(32)

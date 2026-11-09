@@ -15,6 +15,7 @@ import sqlite3
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 from tests.conftest import REPO_ROOT, LiveServer, free_port
@@ -620,30 +621,89 @@ class TestEnsureSecretKey:
     def test_it_does_nothing_without_an_env_file(self, tmp_path: Path) -> None:
         assert self._run(None, tmp_path) == ""
 
-    def _rotated(self, env_text: str, tmp_path: Path) -> None:
+    def _rotated(self, env_text: str, old: str, tmp_path: Path) -> None:
+        """The weak key `old` must be gone and replaced by exactly one strong one."""
         out = self._run(env_text, tmp_path)
-        assert out.count("VEILLEE_SECRET_KEY=") == 1
+        assert out.count("VEILLEE_SECRET_KEY") == 1
+        assert self._key(out) != old
+        assert old not in out.replace("VEILLEE_PASSCODE", "").split("VEILLEE_SECRET_KEY=")[1]
         assert len(self._key(out)) >= 32
 
-    def test_31_chars_inside_quotes_is_too_short(self, tmp_path: Path) -> None:
+    def _kept(self, env_text: str, tmp_path: Path) -> None:
+        assert self._run(env_text, tmp_path) == env_text
+
+    def test_31_chars_inside_double_quotes_is_too_short(self, tmp_path: Path) -> None:
+        old = "abcdefghijklmnopqrstuvwxyzABCDE"
+        self._rotated(f'VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY="{old}"\n', old, tmp_path)
+
+    def test_31_chars_inside_single_quotes_is_too_short(self, tmp_path: Path) -> None:
+        old = "abcdefghijklmnopqrstuvwxyzABCDE"
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY='{old}'\n", old, tmp_path)
+
+    def test_32_chars_inside_quotes_is_kept(self, tmp_path: Path) -> None:
+        self._kept(f'VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY="{GOOD_KEY}"\n', tmp_path)
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY='{GOOD_KEY}'\n", tmp_path)
+
+    def test_31_chars_plus_trailing_spaces_is_too_short(self, tmp_path: Path) -> None:
+        old = "abcdefghijklmnopqrstuvwxyzABCDE"
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old}   \n", old, tmp_path)
+
+    def test_a_key_equal_to_the_passcode_is_rotated(self, tmp_path: Path) -> None:
         self._rotated(
-            f'VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY="{"abcdefghijklmnopqrstuvwxyzABCDE"}"\n',
+            f"VEILLEE_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n", GOOD_KEY, tmp_path
+        )
+
+    def test_a_key_equal_to_the_family_passcode_is_rotated(self, tmp_path: Path) -> None:
+        self._rotated(
+            f"VEILLEE_FAMILY_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n",
+            GOOD_KEY,
             tmp_path,
         )
 
-    def test_31_chars_plus_trailing_spaces_is_too_short(self, tmp_path: Path) -> None:
-        self._rotated(
-            "VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY=abcdefghijklmnopqrstuvwxyzABCDE   \n", tmp_path
-        )
-
-    def test_a_key_equal_to_a_long_passcode_is_rotated(self, tmp_path: Path) -> None:
-        self._rotated(f"VEILLEE_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n", tmp_path)
-        self._rotated(
-            f"VEILLEE_FAMILY_PASSCODE={GOOD_KEY}\nVEILLEE_SECRET_KEY={GOOD_KEY}\n", tmp_path
-        )
+    def test_a_good_key_with_trailing_spaces_is_kept(self, tmp_path: Path) -> None:
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={GOOD_KEY}   \n", tmp_path)
 
     def test_a_low_variety_key_is_rotated(self, tmp_path: Path) -> None:
-        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={'a' * 40}\n", tmp_path)
+        old = "a" * 40
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old}\n", old, tmp_path)
+
+    def test_an_inline_comment_does_not_count_towards_length(self, tmp_path: Path) -> None:
+        old = "short"
+        self._rotated(
+            f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old} # {'padding ' * 8}\n", old, tmp_path
+        )
+
+    def test_a_good_key_with_an_inline_comment_is_kept(self, tmp_path: Path) -> None:
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={GOOD_KEY} # rotate yearly\n", tmp_path)
+
+    def test_a_passcode_with_an_inline_comment_is_compared_without_it(self, tmp_path: Path) -> None:
+        self._rotated(
+            f"VEILLEE_PASSCODE={GOOD_KEY} # his word\nVEILLEE_SECRET_KEY={GOOD_KEY}\n",
+            GOOD_KEY,
+            tmp_path,
+        )
+
+    def test_an_empty_passcode_with_a_comment_means_no_passcode(self, tmp_path: Path) -> None:
+        self._kept("VEILLEE_PASSCODE= # off for now\nVEILLEE_PORT=8123\n", tmp_path)
+
+    @pytest.mark.parametrize("pad", ["\u00a0", "\u200b", "$"], ids=["nbsp", "zero-width", "dollar"])
+    def test_a_key_padded_with_an_unsafe_character_is_rotated(
+        self, pad: str, tmp_path: Path
+    ) -> None:
+        old = GOOD_KEY[:31] + pad
+        self._rotated(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY={old}\n", old, tmp_path)
+
+    def test_a_leading_space_passcode_line_is_recognised(self, tmp_path: Path) -> None:
+        out = self._run("  VEILLEE_PASSCODE=seanchai\n", tmp_path)
+        assert len(self._key(out)) >= 32
+
+    def test_spaces_around_equals_and_an_indented_weak_key_are_replaced(
+        self, tmp_path: Path
+    ) -> None:
+        self._rotated("VEILLEE_PASSCODE = x\n  VEILLEE_SECRET_KEY = short\n", "short", tmp_path)
+
+    def test_spaces_around_equals_on_a_good_key_keep_it(self, tmp_path: Path) -> None:
+        self._kept(f"VEILLEE_PASSCODE=x\nVEILLEE_SECRET_KEY = {GOOD_KEY}\n", tmp_path)
 
     def test_an_exported_passcode_is_recognised(self, tmp_path: Path) -> None:
         out = self._run("export VEILLEE_PASSCODE=seanchai\n", tmp_path)
@@ -671,6 +731,37 @@ class TestEnsureSecretKey:
         (tmp_path / ".env").chmod(0o640)
         self._run(None, tmp_path)
         assert ((tmp_path / ".env").stat().st_mode & 0o777) == 0o640
+
+
+class TestAtomicWrite:
+    def _sh(self, snippet: str, tmp_path: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["bash", "-c", f"source {SCRIPTS / 'runtime.sh'}; {snippet}"],
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
+            timeout=60,
+            check=False,
+        )
+
+    def test_a_failed_write_leaves_no_temp_file_and_the_original_intact(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / ".env").write_text("VEILLEE_PASSCODE=x\n", encoding="utf-8")
+        result = self._sh("mv() { return 1; }; echo new | atomic_write .env", tmp_path)
+        assert result.returncode != 0
+        assert (tmp_path / ".env").read_text(encoding="utf-8") == "VEILLEE_PASSCODE=x\n"
+        assert sorted(p.name for p in tmp_path.iterdir()) == [".env"]
+
+    def test_a_symlinked_env_file_is_written_through(self, tmp_path: Path) -> None:
+        real = tmp_path / "real.env"
+        real.write_text("old\n", encoding="utf-8")
+        real.chmod(0o640)
+        (tmp_path / ".env").symlink_to(real)
+        assert self._sh("echo new | atomic_write .env", tmp_path).returncode == 0
+        assert (tmp_path / ".env").is_symlink()
+        assert real.read_text(encoding="utf-8") == "new\n"
+        assert (real.stat().st_mode & 0o777) == 0o640
 
 
 class TestWriteEnvFileMode:

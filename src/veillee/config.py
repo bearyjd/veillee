@@ -164,5 +164,5 @@ def require_session_secret(settings: Settings) -> None:
             "different ones, and must differ from the old public "
             "default and from both passcodes, whenever VEILLEE_PASSCODE or "
             "VEILLEE_FAMILY_PASSCODE is set. Generate one with: "
-            "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            "python3 -c 'import secrets; print(secrets.token_urlsafe(32))'"
         )
