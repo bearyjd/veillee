@@ -447,6 +447,7 @@ HTTP rather than by checking which buttons are visible.
 # in .env
 VEILLEE_PASSCODE=the-word-you-give-him
 VEILLEE_FAMILY_PASSCODE=the-word-you-give-everyone-else
+VEILLEE_SECRET_KEY=<output of: python -c 'import secrets; print(secrets.token_urlsafe(32))'>
 ```
 
 Both are off by default. Setting only the family one still requires a word from

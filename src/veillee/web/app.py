@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from ..config import Settings, load_settings
+from ..config import Settings, load_settings, require_session_secret
 from ..db import initialise
 from ..index import reindex
 from ..questions import load_bank
@@ -54,6 +54,7 @@ def _startup(app: FastAPI, settings: Settings) -> None:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or load_settings()
+    require_session_secret(resolved)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

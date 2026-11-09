@@ -1,4 +1,4 @@
-"""Runtime configuration. Everything has a working default; nothing is required."""
+"""Runtime configuration. Everything has a default except the key once a passcode is set."""
 
 from __future__ import annotations
 
@@ -8,6 +8,14 @@ from pathlib import Path
 
 DEFAULT_DATA_DIR = Path("data")
 DEFAULT_DB_PATH = Path("veillee.db")
+
+# The signing key this project used to fall back to. It is public, so a cookie
+# signed with it proves nothing; it is refused outright.
+INSECURE_DEFAULT_SECRET_KEY = "veillee-local-tailnet-only"
+
+
+class ConfigError(RuntimeError):
+    """The environment describes a deployment that must not start."""
 
 
 def _env_path(name: str, default: Path) -> Path:
@@ -114,7 +122,7 @@ def load_settings() -> Settings:
         questions_dir=_env_path("VEILLEE_QUESTIONS_DIR", Path("questions")),
         passcode=passcode,
         family_passcode=os.environ.get("VEILLEE_FAMILY_PASSCODE") or None,
-        secret_key=os.environ.get("VEILLEE_SECRET_KEY") or "veillee-local-tailnet-only",
+        secret_key=os.environ.get("VEILLEE_SECRET_KEY") or "",
         transcription_backend=os.environ.get("VEILLEE_TRANSCRIPTION_BACKEND", "local"),
         whisper_model=os.environ.get("VEILLEE_WHISPER_MODEL", "small"),
         whisper_compute_type=os.environ.get("VEILLEE_WHISPER_COMPUTE_TYPE", "int8"),
@@ -127,3 +135,20 @@ def load_settings() -> Settings:
         worker_poll_seconds=float(os.environ.get("VEILLEE_WORKER_POLL_SECONDS", "3.0")),
         max_attempts=_env_int("VEILLEE_MAX_ATTEMPTS", 5),
     )
+
+
+def require_session_secret(settings: Settings) -> None:
+    """Refuse to serve a passcode that a forged cookie could walk past.
+
+    The cookie is signed with `secret_key`; if that is missing or public, anyone
+    can mint a writer cookie. With no passcode there is no auth to bypass.
+    """
+    if not (settings.passcode or settings.family_passcode):
+        return
+    if not settings.secret_key.strip() or settings.secret_key == INSECURE_DEFAULT_SECRET_KEY:
+        raise ConfigError(
+            "VEILLEE_SECRET_KEY must be set to a private random value when "
+            "VEILLEE_PASSCODE or VEILLEE_FAMILY_PASSCODE is set (it is missing, or "
+            "equals the old public default). Generate one with: "
+            "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+        )

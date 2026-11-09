@@ -31,7 +31,7 @@ services:
       VEILLEE_PASSCODE: "${VEILLEE_PASSCODE:-}"
       PUID: "${VEILLEE_PUID:-}"
       PGID: "${VEILLEE_PGID:-}"
-      VEILLEE_SECRET_KEY: "${VEILLEE_SECRET_KEY:-veillee-local-tailnet-only}"
+      VEILLEE_SECRET_KEY: "${VEILLEE_SECRET_KEY:-}"
       VEILLEE_GIT_AUTOCOMMIT: "${VEILLEE_GIT_AUTOCOMMIT:-1}"
     restart: unless-stopped
 
