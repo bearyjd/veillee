@@ -69,6 +69,37 @@ class TestWithAPasscode:
         assert "veillee_session" not in response.cookies
         assert "wasn't right" in response.text
 
+    def test_repeated_wrong_words_are_throttled(
+        self, live_server_with_passcode: LiveServer
+    ) -> None:
+        """Guessing must not be free: after a few misses the address is locked out."""
+        with httpx.Client(base_url=live_server_with_passcode.base_url, timeout=30) as client:
+            for _ in range(5):
+                miss = client.post(
+                    "/enter", data={"passcode": "wrong", "next_path": "/"}, follow_redirects=False
+                )
+                assert miss.status_code == 401
+            blocked = client.post(
+                "/enter", data={"passcode": "wrong", "next_path": "/"}, follow_redirects=False
+            )
+            assert blocked.status_code == 429
+            assert "Retry-After" in blocked.headers
+            # Even the right word is refused while locked out.
+            right = client.post(
+                "/enter", data={"passcode": PASSCODE, "next_path": "/"}, follow_redirects=False
+            )
+            assert right.status_code == 429
+            assert "veillee_session" not in client.cookies
+
+    def test_a_few_typos_do_not_lock_him_out(self, live_server_with_passcode: LiveServer) -> None:
+        with httpx.Client(base_url=live_server_with_passcode.base_url, timeout=30) as client:
+            for _ in range(3):
+                client.post("/enter", data={"passcode": "typo"}, follow_redirects=False)
+            ok = client.post(
+                "/enter", data={"passcode": PASSCODE, "next_path": "/"}, follow_redirects=False
+            )
+            assert ok.status_code == 303
+
     def test_the_right_word_lets_you_in(self, live_server_with_passcode: LiveServer) -> None:
         with httpx.Client(base_url=live_server_with_passcode.base_url, timeout=30) as client:
             response = client.post(

@@ -14,6 +14,8 @@ Hidden buttons are a courtesy; the middleware is the rule.
 from __future__ import annotations
 
 import hmac
+import threading
+import time
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse, Response
@@ -27,6 +29,11 @@ _SALT = "veillee-passcode-v1"
 
 ROLE_WRITER = "writer"
 ROLE_FAMILY = "family"
+
+# Passcode guessing is throttled per client address: this many misses inside
+# the window locks that address out until the oldest miss ages out.
+MAX_FAILED_ATTEMPTS = 5
+ATTEMPT_WINDOW_SECONDS = 5 * 60
 
 OPEN_PATHS = frozenset({"/healthz", "/enter"})
 
@@ -125,3 +132,36 @@ def redirect_to_entry(request: Request) -> RedirectResponse:
     destination = request.url.path
     suffix = f"?next={destination}" if destination and destination != "/" else ""
     return RedirectResponse(f"/enter{suffix}", status_code=303)
+
+
+_failures: dict[str, list[float]] = {}
+_failures_lock = threading.Lock()
+
+
+def client_key(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def retry_after(key: str, now: float | None = None) -> int:
+    """Seconds until this address may try again; 0 if it may try now."""
+    current = time.monotonic() if now is None else now
+    with _failures_lock:
+        recent = [t for t in _failures.get(key, []) if current - t < ATTEMPT_WINDOW_SECONDS]
+        if recent:
+            _failures[key] = recent
+        else:
+            _failures.pop(key, None)
+        if len(recent) < MAX_FAILED_ATTEMPTS:
+            return 0
+        return max(1, int(ATTEMPT_WINDOW_SECONDS - (current - recent[0])) + 1)
+
+
+def record_failure(key: str, now: float | None = None) -> None:
+    current = time.monotonic() if now is None else now
+    with _failures_lock:
+        _failures.setdefault(key, []).append(current)
+
+
+def clear_failures(key: str) -> None:
+    with _failures_lock:
+        _failures.pop(key, None)
