@@ -232,7 +232,9 @@ def enter_submit(
             {"next_path": next_path, "failed": True},
             status_code=401,
         )
-    safe_next = next_path if next_path.startswith("/") and "//" not in next_path else "/"
+    # Browsers treat "\\" as "/", so "/\\host" is scheme-relative just like "//host".
+    is_local = next_path.startswith("/") and "//" not in next_path and "\\" not in next_path
+    safe_next = next_path if is_local else "/"
     auth.clear_failures(key)
     response = RedirectResponse(safe_next, status_code=303)
     auth.issue_cookie(response, settings, role)

@@ -858,3 +858,19 @@ class TestWriteEnvFileMode:
 
     def test_a_new_file_is_600(self, tmp_path: Path) -> None:
         assert (self._write(tmp_path).stat().st_mode & 0o777) == 0o600
+
+
+def test_third_party_deploy_images_are_pinned_by_digest() -> None:
+    """Base images on the deploy path must not float on a mutable tag."""
+    pinned = re.compile(r"@sha256:[0-9a-f]{64}$")
+    refs = [
+        line.split()[1]
+        for line in (REPO_ROOT / "Dockerfile").read_text().splitlines()
+        if line.startswith("FROM ")
+    ]
+    # Not yaml.safe_load: the overlay uses compose-only tags such as !reset.
+    compose = (REPO_ROOT / "compose.tailscale.yaml").read_text(encoding="utf-8")
+    refs += re.findall(r"^\s*image:\s*(\S+)", compose, re.MULTILINE)
+    assert refs
+    unpinned = [ref for ref in refs if not pinned.search(ref)]
+    assert not unpinned, f"pin by digest: {unpinned}"

@@ -13,13 +13,14 @@ Hidden buttons are a courtesy; the middleware is the rule.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import threading
 import time
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse, Response
-from itsdangerous import BadSignature, URLSafeSerializer
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from ..config import Settings
 
@@ -42,13 +43,28 @@ OPEN_PATHS = frozenset({"/healthz", "/enter"})
 FAMILY_DENIED_PREFIXES = ("/admin", "/api/answer", "/api/recording", "/api/photo", "/questions")
 
 
-def _serializer(settings: Settings) -> URLSafeSerializer:
-    return URLSafeSerializer(settings.secret_key, salt=_SALT)
+def _serializer(settings: Settings) -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(settings.secret_key, salt=_SALT)
+
+
+def _fingerprint(settings: Settings, role: str) -> str | None:
+    """An HMAC of the passcode this role signs in with, or None if it has none.
+
+    Stored in the cookie, so changing or removing a passcode signs out every
+    device that entered with the old one.
+    """
+    passcode = settings.passcode if role == ROLE_WRITER else settings.family_passcode
+    if not passcode:
+        return None
+    key = settings.secret_key.encode()
+    return hmac.new(key, passcode.encode(), hashlib.sha256).hexdigest()
 
 
 def issue_cookie(response: Response, settings: Settings, role: str = ROLE_WRITER) -> None:
     """Mark this device as known, and as what, for a long time."""
-    token = _serializer(settings).dumps({"ok": True, "role": role})
+    token = _serializer(settings).dumps(
+        {"ok": True, "role": role, "pf": _fingerprint(settings, role)}
+    )
     response.set_cookie(
         COOKIE_NAME,
         token,
@@ -67,13 +83,19 @@ def role_from_cookie(request: Request, settings: Settings) -> str | None:
     if not token:
         return None
     try:
-        payload = _serializer(settings).loads(token)
+        payload = _serializer(settings).loads(token, max_age=COOKIE_MAX_AGE)
     except BadSignature:
         return None
     if not isinstance(payload, dict) or not payload.get("ok"):
         return None
     role = payload.get("role")
-    return role if role in {ROLE_WRITER, ROLE_FAMILY} else None
+    if role not in {ROLE_WRITER, ROLE_FAMILY}:
+        return None
+    expected = _fingerprint(settings, role)
+    presented = payload.get("pf")
+    if expected is None or not isinstance(presented, str):
+        return None
+    return role if hmac.compare_digest(presented, expected) else None
 
 
 def has_valid_cookie(request: Request, settings: Settings) -> bool:

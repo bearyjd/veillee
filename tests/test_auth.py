@@ -158,7 +158,16 @@ class TestWithAPasscode:
             )
             assert entry.headers["location"] == "/question/q030"
 
-    @pytest.mark.parametrize("hostile", ["//evil.example.com", "https://evil.example.com/x", "//x"])
+    @pytest.mark.parametrize(
+        "hostile",
+        [
+            "//evil.example.com",
+            "https://evil.example.com/x",
+            "//x",
+            "/\\evil.example.com",
+            "/\\/evil.example.com",
+        ],
+    )
     def test_it_will_not_bounce_you_off_the_tailnet(
         self, live_server_with_passcode: LiveServer, hostile: str
     ) -> None:

@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 ARCHIVE_SAMPLE_RATE = 48_000
 PLAYBACK_BITRATE = "48k"
 _TIMEOUT_SECONDS = 3600
+# Uploads are untrusted: a playlist or concat file could otherwise make ffmpeg
+# open http:, tcp: or other URLs (SSRF) or read arbitrary local paths via
+# crypto:/subfile:. Only plain files and pipes are allowed as inputs.
+_INPUT_RESTRICTIONS = ["-protocol_whitelist", "file,pipe"]
 
 
 class TranscodeError(RuntimeError):
@@ -49,6 +53,7 @@ def probe_duration(path: Path) -> float:
             "format=duration",
             "-of",
             "json",
+            *_INPUT_RESTRICTIONS,
             str(path),
         ]
     )
@@ -64,7 +69,9 @@ def probe_duration(path: Path) -> float:
 
 def is_decodable(path: Path) -> bool:
     """True when ffmpeg can actually decode the file, not merely open it."""
-    result = _run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "null", "-"])
+    result = _run(
+        ["ffmpeg", "-v", "error", *_INPUT_RESTRICTIONS, "-i", str(path), "-f", "null", "-"]
+    )
     return result.returncode == 0
 
 
@@ -81,6 +88,7 @@ def _transcode(
             "-y",
             "-v",
             "error",
+            *_INPUT_RESTRICTIONS,
             "-i",
             str(source),
             "-vn",
@@ -134,6 +142,7 @@ def probe_codec(path: Path) -> str:
             "stream=codec_name",
             "-of",
             "json",
+            *_INPUT_RESTRICTIONS,
             str(path),
         ]
     )
