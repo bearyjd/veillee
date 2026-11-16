@@ -213,8 +213,19 @@ def enter_submit(
     next_path: str = Form("/"),
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse | RedirectResponse:
+    key = auth.client_key(request)
+    wait = auth.retry_after(key)
+    if wait:
+        return templates.TemplateResponse(
+            request,
+            "enter.html",
+            {"next_path": next_path, "failed": False, "throttled": True},
+            status_code=429,
+            headers={"Retry-After": str(wait)},
+        )
     role = auth.role_for_passcode(passcode, settings)
     if role is None:
+        auth.record_failure(key)
         return templates.TemplateResponse(
             request,
             "enter.html",
@@ -224,6 +235,7 @@ def enter_submit(
     # Browsers treat "\\" as "/", so "/\\host" is scheme-relative just like "//host".
     is_local = next_path.startswith("/") and "//" not in next_path and "\\" not in next_path
     safe_next = next_path if is_local else "/"
+    auth.clear_failures(key)
     response = RedirectResponse(safe_next, status_code=303)
     auth.issue_cookie(response, settings, role)
     return response
