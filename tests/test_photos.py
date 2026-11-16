@@ -170,6 +170,31 @@ class TestRefusals:
                 )
         assert list(settings.trash_dir.rglob("*.jpg"))
 
+    @pytest.mark.parametrize("pixels", [600_000, 1000])
+    def test_a_decompression_bomb_is_refused_and_cleaned_up(
+        self,
+        settings: Settings,
+        sample_photo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        pixels: int,
+    ) -> None:
+        """Over the pixel limit (warning) or twice it (error): refused, nothing orphaned."""
+        with Image.open(sample_photo) as probe:
+            assert probe.width * probe.height > pixels
+        monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", pixels)
+        with closing_connection(settings.db_path) as connection:
+            with pytest.raises(IngestError):
+                ingest_photograph(
+                    settings,
+                    connection,
+                    question_id="q012",
+                    source_path=_staged(settings, sample_photo, "bomb.jpg"),
+                    original_suffix=".jpg",
+                )
+        assert not list(settings.photographs_dir.rglob("*.json"))
+        assert not list(settings.photographs_dir.rglob("*.part"))
+        assert not list(settings.photographs_dir.rglob("*.jpg"))
+
     def test_an_empty_file_is_refused(self, settings: Settings) -> None:
         empty = settings.data_dir / "empty.jpg"
         empty.write_bytes(b"")
