@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
+from unittest.mock import patch
 
 import pytest
 
@@ -147,3 +149,30 @@ class TestChecksumsAndSidecar:
         )
         rate = int(json.loads(result.stdout)["streams"][0]["sample_rate"])
         assert rate == ARCHIVE_SAMPLE_RATE
+
+
+class TestUntrustedInputIsRestricted:
+    def test_network_protocols_are_refused(self, tmp_path) -> None:
+        """A playlist upload must not make ffmpeg or ffprobe open network URLs."""
+        playlist = tmp_path / "evil.m3u8"
+        playlist.write_text(
+            "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nhttp://127.0.0.1:9/x.ts\n#EXT-X-ENDLIST\n"
+        )
+        captured: list[list[str]] = []
+        real_run = subprocess.run
+
+        def spy(args, **kwargs):
+            captured.append(list(args))
+            return real_run(args, **kwargs)
+
+        with patch("veillee.transcode.subprocess.run", spy):
+            probe_duration(playlist)
+            is_decodable(playlist)
+            with pytest.raises(TranscodeError):
+                to_flac(playlist, tmp_path / "out.flac")
+
+        assert len(captured) == 3
+        for args in captured:
+            assert args[args.index("-protocol_whitelist") + 1] == "file,pipe"
+            input_marker = "-i" if "-i" in args else str(playlist)
+            assert args.index("-protocol_whitelist") < args.index(input_marker)
