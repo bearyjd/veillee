@@ -219,7 +219,7 @@ def enter_submit(
         return templates.TemplateResponse(
             request,
             "enter.html",
-            {"next_path": next_path, "failed": True},
+            {"next_path": next_path, "failed": False, "throttled": True},
             status_code=429,
             headers={"Retry-After": str(wait)},
         )

@@ -89,6 +89,8 @@ class TestWithAPasscode:
                 "/enter", data={"passcode": PASSCODE, "next_path": "/"}, follow_redirects=False
             )
             assert right.status_code == 429
+            assert "Too many tries" in right.text
+            assert "That wasn't right" not in right.text
             assert "veillee_session" not in client.cookies
 
     def test_a_few_typos_do_not_lock_him_out(self, live_server_with_passcode: LiveServer) -> None:

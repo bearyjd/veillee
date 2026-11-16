@@ -2,7 +2,7 @@
 {% block title %}Enter — {{ site_name }}{% endblock %}
 {% block content %}
 <h1>Welcome</h1>
-{% if failed %}<p class="notice problem" role="alert">That wasn't right. Try again.</p>{% endif %}
+{% if throttled %}<p class="notice problem" role="alert">Too many tries - wait a few minutes.</p>{% elif failed %}<p class="notice problem" role="alert">That wasn't right. Try again.</p>{% endif %}
 <p class="lede">Type the word you were given. This machine will remember you afterwards.</p>
 <form method="post" action="/enter" class="stack">
   <label for="passcode">The word</label>
