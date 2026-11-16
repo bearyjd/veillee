@@ -12,7 +12,6 @@ original is never touched.
 from __future__ import annotations
 
 import json
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -71,11 +70,16 @@ def make_view_copy(source: Path, destination: Path) -> tuple[int, int]:
     """
     destination.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with warnings.catch_warnings():
-            # Pillow only warns between 1x and 2x the pixel limit; refuse both.
-            warnings.simplefilter("error", Image.DecompressionBombWarning)
-            image = Image.open(source)
+        image = Image.open(source)
         with image:
+            # Pillow only warns between 1x and 2x the pixel limit and errors past 2x;
+            # refuse both. An explicit size check, because warning filters are
+            # process-global and not thread-safe.
+            limit = Image.MAX_IMAGE_PIXELS
+            if limit is not None and image.width * image.height > limit:
+                raise Image.DecompressionBombError(
+                    f"{image.width}x{image.height} exceeds {limit} pixels"
+                )
             upright = (ImageOps.exif_transpose(image) or image).convert("RGB")
             upright.thumbnail((VIEW_MAX_EDGE, VIEW_MAX_EDGE), Resampling.LANCZOS)
             temporary = destination.with_suffix(destination.suffix + ".part")
