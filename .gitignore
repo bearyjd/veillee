@@ -13,7 +13,6 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 build/editor/node_modules/
-build/editor/package-lock.json
 test-results/
 exports/
 *.log
