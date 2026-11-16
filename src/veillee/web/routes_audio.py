@@ -46,6 +46,25 @@ def _require_question_id(bank: QuestionBank, question_id: str) -> str:
     return question_id
 
 
+async def _read_capped_body(request: Request, limit: int) -> bytes:
+    """Read the request body, refusing with 413 before buffering more than `limit`."""
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            too_big = int(declared) > limit
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Malformed Content-Length") from None
+        if too_big:
+            raise HTTPException(status_code=413, detail="Chunk too large")
+
+    body = bytearray()
+    async for part in request.stream():
+        body.extend(part)
+        if len(body) > limit:
+            raise HTTPException(status_code=413, detail="Chunk too large")
+    return bytes(body)
+
+
 def _suffix_for(filename: str | None, fallback: str) -> str:
     if not filename or "." not in filename:
         return fallback
@@ -135,11 +154,9 @@ async def upload_chunk(
     if index < 0:
         raise HTTPException(status_code=400, detail="Malformed chunk index")
 
-    payload = await request.body()
+    payload = await _read_capped_body(request, CHUNK_LIMIT_BYTES)
     if not payload:
         raise HTTPException(status_code=400, detail="Empty chunk")
-    if len(payload) > CHUNK_LIMIT_BYTES:
-        raise HTTPException(status_code=413, detail="Chunk too large")
 
     try:
         ingest.write_chunk(settings, upload_id, index, payload)
