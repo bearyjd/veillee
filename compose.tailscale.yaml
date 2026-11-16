@@ -15,7 +15,7 @@
 
 services:
   tailscale:
-    image: tailscale/tailscale:latest
+    image: tailscale/tailscale:latest@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4
     environment:
       # Optional. With a key the node joins unattended; without one the
       # container logs a login URL to open in a browser, which is easier for a
