@@ -176,3 +176,28 @@ class TestUntrustedInputIsRestricted:
             assert args[args.index("-protocol_whitelist") + 1] == "file,pipe"
             input_marker = "-i" if "-i" in args else str(playlist)
             assert args.index("-protocol_whitelist") < args.index(input_marker)
+
+    @pytest.mark.parametrize("name", ["evil.wav", "evil.m3u8"])
+    def test_a_playlist_cannot_pull_in_a_neighbouring_local_file(
+        self, tmp_path, sample_wav, name
+    ) -> None:
+        """A concat or HLS playlist uploaded as audio must not read another file.
+
+        Recordings share directories, so a crafted upload naming a sibling file
+        would otherwise copy that file's audio into the attacker's recording.
+        """
+        shutil.copy(sample_wav, tmp_path / "neighbour.wav")
+        upload = tmp_path / name
+        if name.endswith(".m3u8"):
+            upload.write_text(
+                "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nneighbour.wav\n#EXT-X-ENDLIST\n"
+            )
+        else:
+            upload.write_text("ffconcat version 1.0\nfile neighbour.wav\n")
+
+        assert probe_duration(upload) == 0.0
+        assert probe_codec(upload) == ""
+        assert not is_decodable(upload)
+        with pytest.raises(TranscodeError):
+            to_flac(upload, tmp_path / "out.flac")
+        assert not (tmp_path / "out.flac").exists()
