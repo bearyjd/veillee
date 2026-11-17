@@ -14,8 +14,10 @@ import sqlite3
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.datastructures import FormData, UploadFile
+from starlette.types import Message
 
 from .. import ingest, repository
 from ..config import Settings
@@ -29,6 +31,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 CHUNK_LIMIT_BYTES = 32 * 1024 * 1024
+MULTIPART_OVERHEAD_BYTES = 64 * 1024
 SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 PLAYABLE = {"opus": ("audio/ogg", "opus_path"), "flac": ("audio/flac", "flac_path")}
 DELETE_CONFIRMATION = "delete"
@@ -46,8 +49,7 @@ def _require_question_id(bank: QuestionBank, question_id: str) -> str:
     return question_id
 
 
-async def _read_capped_body(request: Request, limit: int) -> bytes:
-    """Read the request body, refusing with 413 before buffering more than `limit`."""
+def _refuse_declared_oversize(request: Request, limit: int, detail: str) -> None:
     declared = request.headers.get("content-length")
     if declared is not None:
         try:
@@ -55,7 +57,12 @@ async def _read_capped_body(request: Request, limit: int) -> bytes:
         except ValueError:
             raise HTTPException(status_code=400, detail="Malformed Content-Length") from None
         if too_big:
-            raise HTTPException(status_code=413, detail="Chunk too large")
+            raise HTTPException(status_code=413, detail=detail)
+
+
+async def _read_capped_body(request: Request, limit: int) -> bytes:
+    """Read the request body, refusing with 413 before buffering more than `limit`."""
+    _refuse_declared_oversize(request, limit, "Chunk too large")
 
     body = bytearray()
     async for part in request.stream():
@@ -63,6 +70,28 @@ async def _read_capped_body(request: Request, limit: int) -> bytes:
         if len(body) > limit:
             raise HTTPException(status_code=413, detail="Chunk too large")
     return bytes(body)
+
+
+async def _read_capped_form(request: Request, limit: int) -> FormData:
+    """Parse a multipart body, refusing with 413 before more than `limit` bytes arrive.
+
+    FastAPI's File()/Form() parameters parse (and spool to disk) the whole body
+    before the handler runs, so the cap has to sit in front of the parser.
+    """
+    detail = "That recording is too large"
+    _refuse_declared_oversize(request, limit, detail)
+
+    received = 0
+
+    async def capped_receive() -> Message:
+        nonlocal received
+        message = await request.receive()
+        received += len(message.get("body", b""))
+        if received > limit:
+            raise HTTPException(status_code=413, detail=detail)
+        return message
+
+    return await Request(request.scope, capped_receive).form()
 
 
 def _suffix_for(filename: str | None, fallback: str) -> str:
@@ -76,14 +105,32 @@ def _suffix_for(filename: str | None, fallback: str) -> str:
 async def upload_recording(
     question_id: str,
     request: Request,
-    file: UploadFile = File(...),
-    device: str = Form(""),
     connection: sqlite3.Connection = Depends(get_db),
     bank: QuestionBank = Depends(get_bank),
     settings: Settings = Depends(get_settings),
 ) -> JSONResponse:
     """Path B: a recording made on his phone, uploaded here."""
     _require_question_id(bank, question_id)
+    # Allow for the multipart framing around the file itself.
+    form = await _read_capped_form(request, settings.max_upload_bytes + MULTIPART_OVERHEAD_BYTES)
+    try:
+        return await _store_upload(question_id, form, request, connection, settings)
+    finally:
+        await form.close()
+
+
+async def _store_upload(
+    question_id: str,
+    form: FormData,
+    request: Request,
+    connection: sqlite3.Connection,
+    settings: Settings,
+) -> JSONResponse:
+    file = form.get("file")
+    if not isinstance(file, UploadFile):
+        raise HTTPException(status_code=422, detail="No recording was attached")
+    device = form.get("device")
+    device = device if isinstance(device, str) else ""
     suffix = _suffix_for(file.filename, ".m4a")
 
     staging_id = uuid.uuid4().hex
