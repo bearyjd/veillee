@@ -20,7 +20,15 @@ _TIMEOUT_SECONDS = 3600
 # Uploads are untrusted: a playlist or concat file could otherwise make ffmpeg
 # open http:, tcp: or other URLs (SSRF) or read arbitrary local paths via
 # crypto:/subfile:. Only plain files and pipes are allowed as inputs.
-_INPUT_RESTRICTIONS = ["-protocol_whitelist", "file,pipe"]
+# The file protocol alone still lets a concat or HLS playlist read a neighbouring
+# local file, so only the demuxers for SUPPORTED_UPLOAD_SUFFIXES may open input.
+_ALLOWED_DEMUXERS = "wav,mp3,mov,matroska,ogg,flac,aac"
+_INPUT_RESTRICTIONS = [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-format_whitelist",
+    _ALLOWED_DEMUXERS,
+]
 
 
 class TranscodeError(RuntimeError):
