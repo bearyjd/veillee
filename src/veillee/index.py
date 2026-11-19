@@ -157,7 +157,7 @@ def _load_recordings(
     count, queued, problems = 0, 0, []
     for sidecar in audio_storage.iter_sidecars(settings):
         try:
-            recording = audio_storage.read_sidecar(sidecar)
+            recording = audio_storage.read_sidecar(settings, sidecar)
         except (OSError, ValueError, KeyError) as exc:
             problems.append(f"could not index {sidecar}: {exc}")
             logger.error("could not index %s: %s", sidecar, exc)

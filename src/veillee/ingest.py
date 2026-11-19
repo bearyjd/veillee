@@ -93,7 +93,7 @@ def ingest_recording(
         opus=paths["opus"],
     )
 
-    recording = audio_storage.read_sidecar(paths["sidecar"])
+    recording = audio_storage.read_sidecar(settings, paths["sidecar"])
     upsert_recording(connection, recording)
     enqueue(connection, recording_id)
     autocommit(
