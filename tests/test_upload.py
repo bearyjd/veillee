@@ -4,6 +4,7 @@ recording stops in the middle because the battery died."""
 from __future__ import annotations
 
 import shutil
+from dataclasses import replace
 
 import pytest
 
@@ -178,3 +179,27 @@ def _staged(settings: Settings, source, name: str):
     destination = settings.data_dir / name
     shutil.copy2(source, destination)
     return destination
+
+
+class TestSessionCaps:
+    def test_chunk_count_cap(self, settings) -> None:
+        ingest.start_upload(settings, "capped", {"question_id": "q012"})
+        with pytest.raises(ingest.UploadLimitError):
+            ingest.write_chunk(settings, "capped", ingest.MAX_CHUNKS_PER_SESSION, b"x")
+        ingest.write_chunk(settings, "capped", ingest.MAX_CHUNKS_PER_SESSION - 1, b"x")
+
+    def test_session_total_cap(self, settings) -> None:
+        small = replace(settings, max_upload_bytes=10)
+        ingest.start_upload(small, "big", {"question_id": "q012"})
+        ingest.write_chunk(small, "big", 0, b"123456")
+        with pytest.raises(ingest.UploadLimitError):
+            ingest.write_chunk(small, "big", 1, b"123456")
+        ingest.write_chunk(small, "big", 0, b"1234567890")  # rewrite replaces, still fits
+
+    def test_open_session_cap(self, settings) -> None:
+        for number in range(ingest.MAX_OPEN_SESSIONS):
+            ingest.start_upload(settings, f"s{number}", {"question_id": "q012"})
+        with pytest.raises(ingest.UploadLimitError):
+            ingest.start_upload(settings, "one-too-many", {"question_id": "q012"})
+        ingest.discard_upload(settings, "s0")
+        ingest.start_upload(settings, "one-too-many", {"question_id": "q012"})

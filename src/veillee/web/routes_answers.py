@@ -20,6 +20,7 @@ from ..questions import QuestionBank, append_custom_question
 from ..storage.answers import load_answer, write_answer
 from ..storage.gitrepo import autocommit
 from .deps import app_state, get_bank, get_db, get_settings
+from .json_body import read_capped_json
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -69,7 +70,7 @@ async def save_answer(
 ) -> JSONResponse:
     """Autosave. Called every five seconds and on blur."""
     question = _require_question(bank, question_id)
-    payload = await request.json()
+    payload = await read_capped_json(request)
     if not isinstance(payload, dict):
         raise HTTPException(status_code=422, detail="Expected a JSON object")
 

@@ -24,6 +24,7 @@ from ..storage import photos as photo_storage
 from ..storage.answers import atomic_write, move_to_trash
 from ..storage.gitrepo import autocommit
 from .deps import get_bank, get_db, get_settings
+from .json_body import read_capped_json
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -169,7 +170,7 @@ async def delete_photograph(
 ) -> JSONResponse:
     """Same rule as recordings: type the word, and nothing is truly deleted."""
     _safe_id(photo_id)
-    body = await request.json()
+    body = await read_capped_json(request)
     raw = body.get("confirm", "") if isinstance(body, dict) else ""
     if str(raw).strip().lower() != DELETE_CONFIRMATION:
         raise HTTPException(

@@ -37,6 +37,14 @@ class IngestError(RuntimeError):
     """The audio could not be taken in. Nothing partial is left behind."""
 
 
+class UploadLimitError(IngestError):
+    """A chunked upload hit a per-session or open-session cap."""
+
+
+MAX_CHUNKS_PER_SESSION = 2000
+MAX_OPEN_SESSIONS = 20
+
+
 def _cleanup(paths: dict[str, Path]) -> None:
     """Remove derived files after a failure. The original is kept if it decoded."""
     for key in ("flac", "opus", "sidecar"):
@@ -156,8 +164,18 @@ def upload_dir(settings: Settings, upload_id: str) -> Path:
     return settings.uploads_dir / upload_id
 
 
+def count_open_uploads(settings: Settings) -> int:
+    if not settings.uploads_dir.is_dir():
+        return 0
+    return sum(1 for entry in settings.uploads_dir.iterdir() if entry.is_dir())
+
+
 def start_upload(settings: Settings, upload_id: str, metadata: dict[str, object]) -> Path:
     directory = upload_dir(settings, upload_id)
+    if not directory.exists() and count_open_uploads(settings) >= MAX_OPEN_SESSIONS:
+        raise UploadLimitError(
+            f"Too many recordings are open ({MAX_OPEN_SESSIONS}). Finish one first."
+        )
     directory.mkdir(parents=True, exist_ok=True)
     atomic_write(directory / "meta.json", json.dumps(metadata, indent=2) + "\n")
     return directory
@@ -168,7 +186,12 @@ def write_chunk(settings: Settings, upload_id: str, index: int, payload: bytes) 
     directory = upload_dir(settings, upload_id)
     if not directory.is_dir():
         raise IngestError("That recording session is not open. Start a new recording.")
+    if index >= MAX_CHUNKS_PER_SESSION:
+        raise UploadLimitError(f"A recording is limited to {MAX_CHUNKS_PER_SESSION} chunks.")
     destination = directory / f"{index:05d}.part"
+    stored = sum(p.stat().st_size for p in directory.glob("*.part") if p != destination)
+    if stored + len(payload) > settings.max_upload_bytes:
+        raise UploadLimitError("That recording is too large")
     temporary = destination.with_suffix(".part.tmp")
     temporary.write_bytes(payload)
     temporary.replace(destination)
