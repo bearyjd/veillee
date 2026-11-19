@@ -26,6 +26,7 @@ from ..storage import audio as audio_storage
 from ..storage.answers import move_to_trash
 from ..storage.gitrepo import autocommit
 from .deps import get_bank, get_db, get_settings
+from .json_body import read_capped_json
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -155,6 +156,9 @@ async def _store_upload(
             device=device or request.headers.get("user-agent", ""),
             source="upload",
         )
+    except HTTPException:
+        ingest.discard_upload(settings, staging_id)
+        raise
     except ingest.IngestError as exc:
         ingest.discard_upload(settings, staging_id)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -177,15 +181,18 @@ def start_recording(
     """Path A step 1: open a session that chunks will be appended to."""
     _require_question_id(bank, question_id)
     upload_id = uuid.uuid4().hex
-    ingest.start_upload(
-        settings,
-        upload_id,
-        {
-            "question_id": question_id,
-            "device": request.headers.get("user-agent", ""),
-            "started": True,
-        },
-    )
+    try:
+        ingest.start_upload(
+            settings,
+            upload_id,
+            {
+                "question_id": question_id,
+                "device": request.headers.get("user-agent", ""),
+                "started": True,
+            },
+        )
+    except ingest.UploadLimitError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
     return JSONResponse({"upload_id": upload_id}, status_code=201)
 
 
@@ -207,6 +214,8 @@ async def upload_chunk(
 
     try:
         ingest.write_chunk(settings, upload_id, index, payload)
+    except ingest.UploadLimitError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     except ingest.IngestError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except OSError as exc:
@@ -296,7 +305,7 @@ async def delete_recording(
 ) -> JSONResponse:
     """Deleting needs the word typed out, and still only moves to .trash/."""
     _safe_id(recording_id, "recording")
-    payload = await request.json()
+    payload = await read_capped_json(request)
     raw = payload.get("confirm", "") if isinstance(payload, dict) else ""
     confirmation = str(raw).strip().lower()
     if confirmation != DELETE_CONFIRMATION:

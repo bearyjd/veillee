@@ -91,6 +91,11 @@
       body: JSON.stringify({ body: body, reason: reason || "autosave" }),
     })
       .then(function (response) {
+        if (response.status === 413) {
+          var tooLong = new Error("answer too long to save");
+          tooLong.terminal = true;
+          throw tooLong;
+        }
         if (!response.ok) throw new Error("save failed: " + response.status);
         return response.json();
       })
@@ -101,7 +106,11 @@
       .catch(function (err) {
         // Never show a false "Saved". If it did not land, say so plainly.
         dirty = true;
-        say("Not saved yet — keep this page open and it will keep trying.", "problem");
+        if (err && err.terminal) {
+          say("This answer is too long to save. Please split it across other questions.", "problem");
+        } else {
+          say("Not saved yet — keep this page open and it will keep trying.", "problem");
+        }
         if (window.console) console.error("veillee autosave", err);
       });
   }
