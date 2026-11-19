@@ -196,3 +196,56 @@ class TestTheBook:
 
     def test_it_is_reachable_from_every_page(self, writer_client) -> None:
         assert "/book" in writer_client.get("/").text
+
+
+class TestAnswerHistory:
+    def test_question_page_lists_earlier_versions(self, writer_client, family_client) -> None:
+        for text in ("First telling.", "Second telling.", "Third telling."):
+            assert writer_client.post("/api/answer/q012", json={"body": text}).status_code == 200
+        page = writer_client.get("/question/q012").text
+        assert "Earlier versions" in page
+        assert "First telling." in page
+        assert "Second telling." in page
+
+    def test_history_is_one_collapsed_group(self, writer_client) -> None:
+        for text in ("One.", "Two.", "Three."):
+            writer_client.post("/api/answer/q016", json={"body": text})
+        page = writer_client.get("/question/q016").text
+        assert '<details class="answer-history"' in page
+        assert page.count("<details") == 1 + page.count("answer-read")
+
+    def test_history_sits_below_photo_and_recording_controls(self, writer_client) -> None:
+        for text in ("One.", "Two.", "Three."):
+            writer_client.post("/api/answer/q017", json={"body": text})
+        page = writer_client.get("/question/q017").text
+        history = page.index('<details class="answer-history"')
+        assert page.index('aria-labelledby="photographs-heading"') < history
+        assert page.index("veilleeRecorder(") < history
+
+    def test_history_shows_ten_then_offers_the_rest(self, writer_client) -> None:
+        for index in range(15):
+            writer_client.post("/api/answer/q018", json={"body": f"Telling number {index}."})
+        page = writer_client.get("/question/q018").text
+        assert page.count('<div class="answer-read">') == 10
+        assert "Show all earlier versions" in page
+        full = writer_client.get("/question/q018?history=all").text
+        assert full.count('<div class="answer-read">') == 14
+        assert "Show all earlier versions" not in full
+
+    def test_family_never_sees_earlier_versions(self, writer_client, family_client) -> None:
+        for text in ("SECRET draft.", ""):
+            assert writer_client.post("/api/answer/q015", json={"body": text}).status_code == 200
+        page = family_client.get("/question/q015").text
+        assert "Earlier versions" not in page
+        assert "SECRET" not in page
+
+    def test_no_history_section_for_a_first_save(self, writer_client) -> None:
+        writer_client.post("/api/answer/q013", json={"body": "Only one."})
+        assert "Earlier versions" not in writer_client.get("/question/q013").text
+
+    def test_history_has_no_restore_control(self, writer_client) -> None:
+        for text in ("One.", "Two."):
+            writer_client.post("/api/answer/q014", json={"body": text})
+        page = writer_client.get("/question/q014").text
+        assert "Earlier versions" in page
+        assert "restore" not in page.lower()

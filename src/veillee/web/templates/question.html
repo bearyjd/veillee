@@ -70,6 +70,7 @@
 
 {% endif %}
 
+
 <!-- ---- Photographs ---------------------------------------------------- -->
 
 <section class="photographs" x-data="veilleePhotos('{{ question.id }}')"
@@ -269,6 +270,27 @@
   </div>
   {% endif %}
 </section>
+{% endif %}
+
+{% if revisions and not read_only %}
+<details class="answer-history" id="earlier-versions">
+  <summary class="answer-history-toggle">Earlier versions ({{ revisions | length }})</summary>
+  <p class="card-note">Every save keeps the version before it. These are for reading only.</p>
+  <ul>
+    {% for revision in revisions %}
+    <li>
+      <details>
+        <summary>{{ revision.saved_at | friendly_date }}, {{ revision.saved_at | friendly_time }}
+          &middot; {{ revision.word_count }} words</summary>
+        <div class="answer-read">{{ revision.body }}</div>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if more_revisions %}
+  <p><a class="button secondary" href="/question/{{ question.id }}?history=all#earlier-versions">Show all earlier versions</a></p>
+  {% endif %}
+</details>
 {% endif %}
 
 {% endblock %}

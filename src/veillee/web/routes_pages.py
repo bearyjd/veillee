@@ -9,14 +9,18 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from .. import repository
 from ..config import Settings
-from ..models import Question
+from ..models import AnswerRevision, Question
 from ..questions import QuestionBank
-from ..storage.answers import load_answer
+from ..storage.answers import load_answer, revision_history
 from . import auth
-from .deps import get_bank, get_db, get_settings
+from .deps import get_bank, get_db, get_settings, is_read_only
 from .templating import build_templates
 
 router = APIRouter()
+
+# Earlier versions shown by default; "show all" goes up to HISTORY_MAX.
+HISTORY_PREVIEW = 10
+HISTORY_MAX = 50
 templates = build_templates()
 
 
@@ -90,16 +94,27 @@ def question_page(
     connection: sqlite3.Connection = Depends(get_db),
     bank: QuestionBank = Depends(get_bank),
     settings: Settings = Depends(get_settings),
+    history: str = "",
 ) -> HTMLResponse:
     """One question per page. The body is read from disk, not the index."""
     question = _require_question(bank, question_id)
     answer = load_answer(settings, question)
+    show_all = history == "all"
+    revisions: list[AnswerRevision] = []
+    if not is_read_only(request):
+        # One extra row tells us whether a "show all" link is needed.
+        revisions = revision_history(
+            settings, question_id, limit=HISTORY_MAX if show_all else HISTORY_PREVIEW + 1
+        )
+    more_revisions = not show_all and len(revisions) > HISTORY_PREVIEW
     return templates.TemplateResponse(
         request,
         "question.html",
         {
             "question": question,
             "answer": answer,
+            "revisions": revisions if show_all else revisions[:HISTORY_PREVIEW],
+            "more_revisions": more_revisions,
             "recordings": repository.recordings_for(connection, question_id),
             "photographs": repository.photographs_for(connection, question_id),
             "next_question": _next_question(bank, question_id),

@@ -512,6 +512,17 @@ footer.site-foot {
      for the phone's own screens. It should not be the smallest thing on it. */
   input[type="file"] { min-height: var(--touch); }
 
+  /* The only way to open an earlier version is to tap its summary. */
+  /* display stays list-item so the native open/closed marker remains visible;
+     the height comes from padding, not from flex. */
+  .answer-history summary {
+    min-height: var(--touch);
+    box-sizing: border-box;
+    padding-block: calc((var(--touch) - 1.5em) / 2);
+    line-height: 1.5;
+    cursor: pointer;
+  }
+
   /* The scrub bar is dragged, not tapped, which is harder than tapping. Giving
      it the same height as everything else is what makes it possible to move to
      the middle of a recording with a thumb instead of guessing. */
