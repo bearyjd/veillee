@@ -211,8 +211,26 @@ class TestAnswerHistory:
         for text in ("One.", "Two.", "Three."):
             writer_client.post("/api/answer/q016", json={"body": text})
         page = writer_client.get("/question/q016").text
-        assert '<details class="answer-history">' in page
+        assert '<details class="answer-history"' in page
         assert page.count("<details") == 1 + page.count("answer-read")
+
+    def test_history_sits_below_photo_and_recording_controls(self, writer_client) -> None:
+        for text in ("One.", "Two.", "Three."):
+            writer_client.post("/api/answer/q017", json={"body": text})
+        page = writer_client.get("/question/q017").text
+        history = page.index('<details class="answer-history"')
+        assert page.index('aria-labelledby="photographs-heading"') < history
+        assert page.index("veilleeRecorder(") < history
+
+    def test_history_shows_ten_then_offers_the_rest(self, writer_client) -> None:
+        for index in range(15):
+            writer_client.post("/api/answer/q018", json={"body": f"Telling number {index}."})
+        page = writer_client.get("/question/q018").text
+        assert page.count('<div class="answer-read">') == 10
+        assert "Show all earlier versions" in page
+        full = writer_client.get("/question/q018?history=all").text
+        assert full.count('<div class="answer-read">') == 14
+        assert "Show all earlier versions" not in full
 
     def test_family_never_sees_earlier_versions(self, writer_client, family_client) -> None:
         for text in ("SECRET draft.", ""):
