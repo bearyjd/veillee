@@ -104,6 +104,32 @@ class TestMovingARecording:
         assert metadata["reviewed"] is True, "a review already done must not be thrown away"
         assert "orchard story" in body
 
+    def test_the_ids_inside_the_json_and_machine_draft_follow_too(
+        self, settings: Settings, recording_id: str
+    ) -> None:
+        _write_transcript(settings, recording_id, "[00:00:00] The orchard story.")
+        paths = audio_storage.transcript_paths(settings, recording_id)
+        paths["json"].write_text(
+            json.dumps({"recording_id": recording_id, "question_id": "q003", "text": "x"}),
+            encoding="utf-8",
+        )
+        paths["machine"].write_text(
+            dumps({"recording_id": recording_id, "question_id": "q003"}, "draft"),
+            encoding="utf-8",
+        )
+
+        result = move_recording(settings, recording_id, "c001")
+
+        new = audio_storage.transcript_paths(settings, result.new_recording_id)
+        raw = json.loads(new["json"].read_text(encoding="utf-8"))
+        assert raw["recording_id"] == result.new_recording_id
+        assert raw["question_id"] == "c001"
+        assert raw["text"] == "x"
+        metadata, body = loads(new["machine"].read_text(encoding="utf-8"))
+        assert metadata["recording_id"] == result.new_recording_id
+        assert metadata["question_id"] == "c001"
+        assert body.strip() == "draft"
+
     def test_the_index_follows_after_a_reindex(self, settings: Settings, recording_id: str) -> None:
         result = move_recording(settings, recording_id, "c001")
         reindex(settings)

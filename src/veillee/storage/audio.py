@@ -49,6 +49,7 @@ def transcript_paths(settings: Settings, recording_id: str) -> dict[str, Path]:
     return {
         "markdown": directory / f"{recording_id}.md",
         "json": directory / f"{recording_id}.json",
+        "machine": directory / f"{recording_id}.machine.md",
     }
 
 

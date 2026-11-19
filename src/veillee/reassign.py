@@ -108,12 +108,29 @@ def _move_transcripts(
         markdown.unlink()
         moved.append(f"{markdown.name} -> {new_paths['markdown'].name}")
 
-    for suffix in (".json", ".machine.md"):
-        source = markdown.with_suffix("").with_name(markdown.stem + suffix)
-        if source.exists():
-            destination = source.with_name(new_recording_id + suffix)
-            source.rename(destination)
-            moved.append(f"{source.name} -> {destination.name}")
+    raw = paths["json"]
+    if raw.exists():
+        try:
+            payload = json.loads(raw.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ReassignError(f"machine transcript is unreadable: {exc}") from exc
+        if isinstance(payload, dict):
+            payload = {**payload, "recording_id": new_recording_id, "question_id": new_question_id}
+        atomic_write(new_paths["json"], json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+        raw.unlink()
+        moved.append(f"{raw.name} -> {new_paths['json'].name}")
+
+    draft = paths["machine"]
+    if draft.exists():
+        try:
+            metadata, body = loads(draft.read_text(encoding="utf-8"))
+        except FrontmatterError as exc:
+            raise ReassignError(f"machine draft is unreadable: {exc}") from exc
+        metadata["recording_id"] = new_recording_id
+        metadata["question_id"] = new_question_id
+        atomic_write(new_paths["machine"], dumps(metadata, body))
+        draft.unlink()
+        moved.append(f"{draft.name} -> {new_paths['machine'].name}")
     return moved
 
 
