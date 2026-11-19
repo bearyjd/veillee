@@ -319,7 +319,8 @@ async def delete_recording(
     # behind orphans a machine draft of a recording that no longer exists.
     transcripts = audio_storage.transcript_paths(settings, recording_id)
     doomed.extend(transcripts.values())
-    doomed.append(transcripts["markdown"].with_suffix(".machine.md"))
+    # Edits to the transcript are kept under .revisions/, and follow it too.
+    doomed.append(settings.revisions_dir / f"transcript-{recording_id}")
 
     moved = []
     for path in doomed:

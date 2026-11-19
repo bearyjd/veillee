@@ -200,6 +200,10 @@ class TestAudioOverHttp:
         )
         assert refused.status_code == 422
 
+        revisions = live_server.data_dir / ".revisions" / f"transcript-{recording_id}"
+        revisions.mkdir(parents=True)
+        (revisions / "20260101-000000.md").write_text("old", encoding="utf-8")
+
         accepted = httpx.post(
             live_server.url(f"/api/recording/{recording_id}/delete"),
             json={"confirm": "delete"},
@@ -208,6 +212,8 @@ class TestAudioOverHttp:
         assert accepted.status_code == 200
         assert not list((live_server.data_dir / "audio").rglob(f"{recording_id}.flac"))
         assert list((live_server.data_dir / ".trash").rglob(f"{recording_id}.flac"))
+        assert not revisions.exists(), "transcript revisions must follow the recording to .trash/"
+        assert list((live_server.data_dir / ".trash").rglob("20260101-000000.md"))
 
 
 class TestHealth:
