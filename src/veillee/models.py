@@ -43,6 +43,15 @@ class Question:
 
 
 @dataclass(frozen=True)
+class AnswerRevision:
+    """One earlier version of an answer, as kept in .revisions/. Read-only."""
+
+    saved_at: str
+    word_count: int
+    body: str
+
+
+@dataclass(frozen=True)
 class Answer:
     question_id: str
     question_text: str

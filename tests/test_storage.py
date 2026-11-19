@@ -15,6 +15,7 @@ from veillee.storage.answers import (
     load_answer,
     move_to_trash,
     read_answer,
+    revision_history,
     serialise,
     write_answer,
 )
@@ -105,6 +106,42 @@ class TestWritingAnswers:
         assert len(revisions) == 5
         preserved = {read_answer(path).body for path in revisions}
         assert preserved == {f"Version {index}." for index in range(5)}
+
+    def test_revision_history_lists_earlier_versions_newest_first(
+        self, settings: Settings, bank: QuestionBank
+    ) -> None:
+        question = bank.by_id("q012")
+        assert question is not None
+        for index in range(4):
+            write_answer(settings, question, f"Version {index} of the story.")
+
+        history = revision_history(settings, "q012")
+
+        assert [entry.body for entry in history] == [
+            "Version 2 of the story.",
+            "Version 1 of the story.",
+            "Version 0 of the story.",
+        ]
+        assert history[0].word_count == 5
+        assert history[0].saved_at.startswith("20")
+
+    def test_revision_history_is_empty_without_revisions(self, settings: Settings) -> None:
+        assert revision_history(settings, "q999") == []
+
+    def test_revision_history_honours_limit_and_skips_unreadable_files(
+        self, settings: Settings, bank: QuestionBank
+    ) -> None:
+        question = bank.by_id("q012")
+        assert question is not None
+        for index in range(5):
+            write_answer(settings, question, f"Version {index}.")
+        (settings.revisions_dir / "q012" / "99999999-999999-999999.md").write_text(
+            "not frontmatter"
+        )
+
+        history = revision_history(settings, "q012", limit=2)
+
+        assert [entry.body for entry in history] == ["Version 3.", "Version 2."]
 
     def test_rapid_saves_do_not_collide(self, settings: Settings, bank: QuestionBank) -> None:
         """Autosave fires every five seconds; revision names must never clash."""

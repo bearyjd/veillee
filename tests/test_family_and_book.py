@@ -196,3 +196,25 @@ class TestTheBook:
 
     def test_it_is_reachable_from_every_page(self, writer_client) -> None:
         assert "/book" in writer_client.get("/").text
+
+
+class TestAnswerHistory:
+    def test_question_page_lists_earlier_versions(self, writer_client, family_client) -> None:
+        for text in ("First telling.", "Second telling.", "Third telling."):
+            assert writer_client.post("/api/answer/q012", json={"body": text}).status_code == 200
+        for client in (writer_client, family_client):
+            page = client.get("/question/q012").text
+            assert "Earlier versions" in page
+            assert "First telling." in page
+            assert "Second telling." in page
+
+    def test_no_history_section_for_a_first_save(self, writer_client) -> None:
+        writer_client.post("/api/answer/q013", json={"body": "Only one."})
+        assert "Earlier versions" not in writer_client.get("/question/q013").text
+
+    def test_history_has_no_restore_control(self, writer_client) -> None:
+        for text in ("One.", "Two."):
+            writer_client.post("/api/answer/q014", json={"body": text})
+        page = writer_client.get("/question/q014").text
+        assert "Earlier versions" in page
+        assert "restore" not in page.lower()

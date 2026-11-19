@@ -11,6 +11,7 @@ Two rules govern every function here:
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import tempfile
@@ -18,9 +19,11 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from ..config import Settings
-from ..models import STATUS_ANSWERED, VALID_STATUSES, Answer, Question
+from ..models import STATUS_ANSWERED, VALID_STATUSES, Answer, AnswerRevision, Question
 from . import frontmatter
 from .paths import answer_relpath, count_words, revision_stamp, utc_now_iso
+
+logger = logging.getLogger(__name__)
 
 FRONTMATTER_KEYS = (
     "question_id",
@@ -74,6 +77,27 @@ def list_revisions(settings: Settings, question_id: str) -> list[Path]:
     if not directory.is_dir():
         return []
     return sorted(directory.glob("*.md"))
+
+
+def revision_history(settings: Settings, question_id: str, limit: int = 50) -> list[AnswerRevision]:
+    """Earlier versions of an answer, newest first, at most `limit`.
+
+    Unreadable revision files are logged and left out; the history view must never
+    take the question page down.
+    """
+    history: list[AnswerRevision] = []
+    for path in reversed(list_revisions(settings, question_id)):
+        if len(history) >= limit:
+            break
+        try:
+            answer = read_answer(path)
+        except (frontmatter.FrontmatterError, OSError, ValueError) as error:
+            logger.warning("skipping unreadable revision %s: %s", path, error)
+            continue
+        history.append(
+            AnswerRevision(saved_at=answer.updated, word_count=answer.word_count, body=answer.body)
+        )
+    return history
 
 
 def move_to_trash(settings: Settings, path: Path) -> Path | None:
