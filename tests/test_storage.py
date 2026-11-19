@@ -143,6 +143,34 @@ class TestWritingAnswers:
 
         assert [entry.body for entry in history] == ["Version 3.", "Version 2."]
 
+    def test_revision_history_skips_empty_and_consecutive_duplicate_bodies(
+        self, settings: Settings, bank: QuestionBank
+    ) -> None:
+        question = bank.by_id("q012")
+        assert question is not None
+        for body in ("Alpha.", "Alpha.", "", "Beta.", "Beta.", "Gamma.", "Final."):
+            write_answer(settings, question, body)
+
+        history = revision_history(settings, "q012")
+
+        assert [entry.body for entry in history] == ["Gamma.", "Beta.", "Alpha."]
+
+    def test_revision_history_survives_null_metadata(
+        self, settings: Settings, bank: QuestionBank
+    ) -> None:
+        question = bank.by_id("q012")
+        assert question is not None
+        for index in range(3):
+            write_answer(settings, question, f"Version {index}.")
+        (settings.revisions_dir / "q012" / "99999999-999999-999999.md").write_text(
+            "---\nquestion_id: q012\nquestion_text: Q\nword_count: null\n"
+            "chapter_order: null\n---\nBroken metadata.\n"
+        )
+
+        history = revision_history(settings, "q012")
+
+        assert [entry.body for entry in history] == ["Version 1.", "Version 0."]
+
     def test_rapid_saves_do_not_collide(self, settings: Settings, bank: QuestionBank) -> None:
         """Autosave fires every five seconds; revision names must never clash."""
         question = bank.by_id("q001")

@@ -13,7 +13,7 @@ from ..models import Question
 from ..questions import QuestionBank
 from ..storage.answers import load_answer, revision_history
 from . import auth
-from .deps import get_bank, get_db, get_settings
+from .deps import get_bank, get_db, get_settings, is_read_only
 from .templating import build_templates
 
 router = APIRouter()
@@ -100,7 +100,7 @@ def question_page(
         {
             "question": question,
             "answer": answer,
-            "revisions": revision_history(settings, question_id),
+            "revisions": [] if is_read_only(request) else revision_history(settings, question_id),
             "recordings": repository.recordings_for(connection, question_id),
             "photographs": repository.photographs_for(connection, question_id),
             "next_question": _next_question(bank, question_id),

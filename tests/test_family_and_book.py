@@ -202,11 +202,17 @@ class TestAnswerHistory:
     def test_question_page_lists_earlier_versions(self, writer_client, family_client) -> None:
         for text in ("First telling.", "Second telling.", "Third telling."):
             assert writer_client.post("/api/answer/q012", json={"body": text}).status_code == 200
-        for client in (writer_client, family_client):
-            page = client.get("/question/q012").text
-            assert "Earlier versions" in page
-            assert "First telling." in page
-            assert "Second telling." in page
+        page = writer_client.get("/question/q012").text
+        assert "Earlier versions" in page
+        assert "First telling." in page
+        assert "Second telling." in page
+
+    def test_family_never_sees_earlier_versions(self, writer_client, family_client) -> None:
+        for text in ("SECRET draft.", ""):
+            assert writer_client.post("/api/answer/q015", json={"body": text}).status_code == 200
+        page = family_client.get("/question/q015").text
+        assert "Earlier versions" not in page
+        assert "SECRET" not in page
 
     def test_no_history_section_for_a_first_save(self, writer_client) -> None:
         writer_client.post("/api/answer/q013", json={"body": "Only one."})

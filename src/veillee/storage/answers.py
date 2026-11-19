@@ -82,18 +82,24 @@ def list_revisions(settings: Settings, question_id: str) -> list[Path]:
 def revision_history(settings: Settings, question_id: str, limit: int = 50) -> list[AnswerRevision]:
     """Earlier versions of an answer, newest first, at most `limit`.
 
-    Unreadable revision files are logged and left out; the history view must never
-    take the question page down.
+    Empty-body revisions and revisions whose body repeats the one saved just before
+    it are left out (autosave and skip/later writes create many of those), so the
+    list reaches back further. Unreadable revision files are logged and left out;
+    the history view must never take the question page down.
     """
     history: list[AnswerRevision] = []
+    last_body: str | None = None
     for path in reversed(list_revisions(settings, question_id)):
         if len(history) >= limit:
             break
         try:
             answer = read_answer(path)
-        except (frontmatter.FrontmatterError, OSError, ValueError) as error:
+        except (frontmatter.FrontmatterError, OSError, ValueError, TypeError) as error:
             logger.warning("skipping unreadable revision %s: %s", path, error)
             continue
+        if not answer.body.strip() or answer.body == last_body:
+            continue
+        last_body = answer.body
         history.append(
             AnswerRevision(saved_at=answer.updated, word_count=answer.word_count, body=answer.body)
         )

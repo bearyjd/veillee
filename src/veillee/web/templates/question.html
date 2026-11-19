@@ -70,7 +70,7 @@
 
 {% endif %}
 
-{% if revisions %}
+{% if revisions and not read_only %}
 <section class="answer-history" aria-labelledby="history-heading">
   <h2 id="history-heading">Earlier versions</h2>
   <p class="card-note">Every save keeps the version before it. These are for reading only.</p>
