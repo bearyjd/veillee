@@ -15,6 +15,7 @@ import json
 import logging
 import shutil
 import sqlite3
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -43,6 +44,7 @@ class UploadLimitError(IngestError):
 
 MAX_CHUNKS_PER_SESSION = 2000
 MAX_OPEN_SESSIONS = 20
+UPLOAD_TTL_SECONDS = 24 * 60 * 60
 
 
 def _cleanup(paths: dict[str, Path]) -> None:
@@ -164,18 +166,47 @@ def upload_dir(settings: Settings, upload_id: str) -> Path:
     return settings.uploads_dir / upload_id
 
 
-def count_open_uploads(settings: Settings) -> int:
+def _is_recorder_session(directory: Path) -> bool:
+    """True for a chunked-recording session; staging dirs carry no 'started' flag."""
+    try:
+        meta = json.loads((directory / "meta.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(meta, dict) and meta.get("started") is True
+
+
+def sweep_stale_uploads(settings: Settings, *, now: float | None = None) -> int:
+    """Trash upload dirs untouched for UPLOAD_TTL_SECONDS. Returns how many."""
     if not settings.uploads_dir.is_dir():
         return 0
-    return sum(1 for entry in settings.uploads_dir.iterdir() if entry.is_dir())
+    cutoff = (time.time() if now is None else now) - UPLOAD_TTL_SECONDS
+    swept = 0
+    for entry in list(settings.uploads_dir.iterdir()):
+        if entry.is_dir() and entry.stat().st_mtime < cutoff:
+            discard_upload(settings, entry.name)
+            swept += 1
+    return swept
+
+
+def count_open_uploads(settings: Settings) -> int:
+    """Open recorder sessions only; photo/file staging never counts toward the cap."""
+    if not settings.uploads_dir.is_dir():
+        return 0
+    return sum(
+        1
+        for entry in settings.uploads_dir.iterdir()
+        if entry.is_dir() and _is_recorder_session(entry)
+    )
 
 
 def start_upload(settings: Settings, upload_id: str, metadata: dict[str, object]) -> Path:
     directory = upload_dir(settings, upload_id)
-    if not directory.exists() and count_open_uploads(settings) >= MAX_OPEN_SESSIONS:
-        raise UploadLimitError(
-            f"Too many recordings are open ({MAX_OPEN_SESSIONS}). Finish one first."
-        )
+    if metadata.get("started") is True and not directory.exists():
+        sweep_stale_uploads(settings)
+        if count_open_uploads(settings) >= MAX_OPEN_SESSIONS:
+            raise UploadLimitError(
+                f"Too many recordings are open ({MAX_OPEN_SESSIONS}). Finish one first."
+            )
     directory.mkdir(parents=True, exist_ok=True)
     atomic_write(directory / "meta.json", json.dumps(metadata, indent=2) + "\n")
     return directory

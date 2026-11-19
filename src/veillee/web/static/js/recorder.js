@@ -89,6 +89,7 @@ window.veilleeRecorder = function (questionId) {
       }
 
       this._chunkIndex = 0;
+      this._limitHit = false;
       this._pending = [];
       this.elapsed = 0;
 
@@ -146,6 +147,10 @@ window.veilleeRecorder = function (questionId) {
       var request = fetch(
         "/api/recording/" + encodeURIComponent(this._uploadId) + "/chunk?index=" + index,
         { method: "POST", body: event.data }
+      ).then(
+        function (response) {
+          if (response.status === 413) return this._limitReached(response);
+        }.bind(this)
       ).catch(
         function () {
           // Report but keep recording: losing one chunk is far better than
@@ -154,6 +159,19 @@ window.veilleeRecorder = function (questionId) {
         }.bind(this)
       );
       this._pending.push(request);
+    },
+
+    /* The server refuses every chunk past its caps. Stop, and say so. */
+    _limitReached: async function (response) {
+      if (this._limitHit) return;
+      this._limitHit = true;
+      var detail = await response.json().catch(function () {
+        return {};
+      });
+      this.error =
+        (detail.detail || "That recording reached its size limit.") +
+        " Recording stopped; what was kept has been saved.";
+      this.stop();
     },
 
     stop: async function () {
@@ -183,9 +201,11 @@ window.veilleeRecorder = function (questionId) {
           throw new Error(detail.detail || "the recording could not be saved");
         }
         this.done = true;
-        window.setTimeout(function () {
-          window.location.reload();
-        }, 900);
+        if (!this._limitHit) {
+          window.setTimeout(function () {
+            window.location.reload();
+          }, 900);
+        }
       } catch (err) {
         this.error = "Couldn't finish saving: " + err.message + " Please try the upload below.";
       } finally {

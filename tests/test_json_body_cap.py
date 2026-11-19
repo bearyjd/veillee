@@ -58,3 +58,9 @@ async def test_malformed_json_is_400() -> None:
 async def test_small_json_is_parsed() -> None:
     request, _ = _request([b'{"confirm": "delete"}'], {})
     assert await read_capped_json(request) == {"confirm": "delete"}
+
+
+def test_answer_char_cap_matches_the_body_cap() -> None:
+    from veillee.web.routes_answers import MAX_BODY_CHARS
+
+    assert MAX_BODY_CHARS == JSON_BODY_LIMIT_BYTES

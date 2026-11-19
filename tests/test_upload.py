@@ -198,8 +198,8 @@ class TestSessionCaps:
 
     def test_open_session_cap(self, settings) -> None:
         for number in range(ingest.MAX_OPEN_SESSIONS):
-            ingest.start_upload(settings, f"s{number}", {"question_id": "q012"})
+            ingest.start_upload(settings, f"s{number}", {"question_id": "q012", "started": True})
         with pytest.raises(ingest.UploadLimitError):
-            ingest.start_upload(settings, "one-too-many", {"question_id": "q012"})
+            ingest.start_upload(settings, "one-too-many", {"question_id": "q012", "started": True})
         ingest.discard_upload(settings, "s0")
-        ingest.start_upload(settings, "one-too-many", {"question_id": "q012"})
+        ingest.start_upload(settings, "one-too-many", {"question_id": "q012", "started": True})

@@ -156,6 +156,9 @@ async def _store_upload(
             device=device or request.headers.get("user-agent", ""),
             source="upload",
         )
+    except HTTPException:
+        ingest.discard_upload(settings, staging_id)
+        raise
     except ingest.IngestError as exc:
         ingest.discard_upload(settings, staging_id)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
