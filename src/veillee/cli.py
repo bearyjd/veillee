@@ -62,7 +62,7 @@ def cmd_verify(_: argparse.Namespace) -> int:
     checked = 0
     for sidecar in audio_storage.iter_sidecars(settings):
         try:
-            recording = audio_storage.read_sidecar(sidecar)
+            recording = audio_storage.read_sidecar(settings, sidecar)
         except (OSError, ValueError, KeyError) as exc:
             problems.append(f"{sidecar}: {exc}")
             continue

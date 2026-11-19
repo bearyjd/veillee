@@ -88,7 +88,7 @@ def write_sidecar(
     return payload
 
 
-def read_sidecar(sidecar_path: Path) -> Recording:
+def read_sidecar(settings: Settings, sidecar_path: Path) -> Recording:
     """Rebuild a Recording from its sidecar alone."""
     payload = json.loads(sidecar_path.read_text(encoding="utf-8"))
     files = payload.get("files", {})
@@ -98,7 +98,7 @@ def read_sidecar(sidecar_path: Path) -> Recording:
         return str(files.get(kind, {}).get(key, ""))
 
     recording_id = str(payload["recording_id"])
-    transcripts = directory.parent.parent.parent / "transcripts"
+    transcripts = settings.transcripts_dir
     transcript = (
         transcripts / recording_dir_for(recording_id) / f"{recording_id}.md"
         if transcripts.is_dir()

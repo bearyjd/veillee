@@ -56,15 +56,17 @@ class TestMovingARecording:
     def test_the_audio_is_not_re_encoded(self, settings: Settings, recording_id: str) -> None:
         """Only names change. The bytes and their checksums must be identical."""
         before = audio_storage.read_sidecar(
-            next(p for p in audio_storage.iter_sidecars(settings) if p.stem == recording_id)
+            settings,
+            next(p for p in audio_storage.iter_sidecars(settings) if p.stem == recording_id),
         )
         result = move_recording(settings, recording_id, "c001")
         after = audio_storage.read_sidecar(
+            settings,
             next(
                 p
                 for p in audio_storage.iter_sidecars(settings)
                 if p.stem == result.new_recording_id
-            )
+            ),
         )
 
         assert after.sha256_original == before.sha256_original
@@ -156,7 +158,7 @@ def test_checksums_still_verify_afterwards(settings: Settings, recording_id: str
     sidecar = next(
         p for p in audio_storage.iter_sidecars(settings) if p.stem == result.new_recording_id
     )
-    recording = audio_storage.read_sidecar(sidecar)
+    recording = audio_storage.read_sidecar(settings, sidecar)
     for path_text, expected in (
         (recording.flac_path, recording.sha256_flac),
         (recording.opus_path, recording.sha256_opus),
@@ -164,3 +166,19 @@ def test_checksums_still_verify_afterwards(settings: Settings, recording_id: str
         from pathlib import Path
 
         assert sha256_file(Path(path_text)) == expected
+
+
+def test_read_sidecar_finds_transcripts_through_settings(
+    settings: Settings, recording_id: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The transcripts folder comes from Settings, not from walking up from audio/."""
+    _write_transcript(settings, recording_id, "[00:00:00] The orchard story.")
+    elsewhere = settings.data_dir / "elsewhere"
+    shutil.move(str(settings.transcripts_dir), str(elsewhere))
+    monkeypatch.setattr(Settings, "transcripts_dir", property(lambda self: elsewhere))
+    sidecar = next(p for p in audio_storage.iter_sidecars(settings) if p.stem == recording_id)
+
+    recording = audio_storage.read_sidecar(settings, sidecar)
+
+    assert recording.transcript_path is not None
+    assert recording.transcript_reviewed is True
