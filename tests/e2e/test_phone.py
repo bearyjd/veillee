@@ -186,6 +186,30 @@ class TestTheTouchPromise:
             f"the quiet button is only {box['height']}px tall; quiet must not mean small"
         )
 
+    def test_the_earlier_versions_toggles_are_full_sized_targets(
+        self, page: object, live_server: LiveServer
+    ) -> None:
+        """Opening an earlier version is only possible through its <summary>."""
+        for body in ("First draft of the story.", "Second draft, a little longer."):
+            response = httpx.post(
+                live_server.url("/api/answer/q040"), json={"body": body}, timeout=30
+            )
+            assert response.status_code < 300, f"the answer would not save: {response.text}"
+        httpx.post(live_server.url("/api/answer/q040"), json={"body": "Third."}, timeout=30)
+
+        page.goto(live_server.url("/question/q040"), wait_until="load")  # type: ignore
+        page.wait_for_selector(".answer-history summary", timeout=20_000)  # type: ignore
+        page.wait_for_timeout(400)  # type: ignore
+
+        heights = page.evaluate(  # type: ignore
+            """() => Array.from(document.querySelectorAll('.answer-history summary'))
+                .map((el) => Math.round(el.getBoundingClientRect().height))"""
+        )
+        assert heights, "no earlier-version toggles were found"
+        assert min(heights) >= TOUCH_PROMISE, (
+            f"an earlier-version toggle is only {min(heights)}px tall; needs {TOUCH_PROMISE}"
+        )
+
     def test_the_record_button_is_whole_and_on_the_screen(
         self, page: object, live_server: LiveServer
     ) -> None:
