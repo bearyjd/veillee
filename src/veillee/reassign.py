@@ -16,6 +16,7 @@ import logging
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .config import Settings
 from .storage import audio as audio_storage
@@ -95,10 +96,10 @@ def move_recording(settings: Settings, recording_id: str, new_question_id: str) 
     return Reassignment(recording_id, new_recording_id, tuple(moved))
 
 
-def _read_transcripts(settings: Settings, recording_id: str) -> dict[str, object]:
+def _read_transcripts(settings: Settings, recording_id: str) -> dict[str, Any]:
     """Parse every transcript file up front, so a bad one fails before anything moves."""
     paths = audio_storage.transcript_paths(settings, recording_id)
-    parsed: dict[str, object] = {}
+    parsed: dict[str, Any] = {}
     for key, label in (("markdown", "transcript"), ("machine", "machine draft")):
         if paths[key].exists():
             try:
@@ -118,7 +119,7 @@ def _move_transcripts(
     recording_id: str,
     new_recording_id: str,
     new_question_id: str,
-    parsed: dict[str, object],
+    parsed: dict[str, Any],
 ) -> list[str]:
     """Carry the transcript across, keeping any review already done on it."""
     moved: list[str] = []
@@ -128,7 +129,7 @@ def _move_transcripts(
     for key in ("markdown", "machine"):
         if key not in parsed:
             continue
-        metadata, body = parsed[key]  # type: ignore[misc]
+        metadata, body = parsed[key]
         metadata = {**metadata, "recording_id": new_recording_id, "question_id": new_question_id}
         new_paths[key].parent.mkdir(parents=True, exist_ok=True)
         atomic_write(new_paths[key], dumps(metadata, body))
