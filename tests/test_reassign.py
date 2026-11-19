@@ -178,6 +178,24 @@ class TestRefusals:
         with pytest.raises(ReassignError, match="missing"):
             move_recording(settings, recording_id, "c001")
 
+    @pytest.mark.parametrize(
+        "key,text",
+        [("json", "{not json"), ("markdown", "no frontmatter"), ("machine", "no frontmatter")],
+    )
+    def test_a_corrupt_transcript_file_moves_nothing(
+        self, settings: Settings, recording_id: str, key: str, text: str
+    ) -> None:
+        _write_transcript(settings, recording_id, "body")
+        paths = audio_storage.transcript_paths(settings, recording_id)
+        paths["machine"].write_text(dumps({"recording_id": recording_id}, "m"), encoding="utf-8")
+        paths[key].write_text(text, encoding="utf-8")
+        before = sorted(p.name for p in settings.data_dir.rglob("*") if p.is_file())
+
+        with pytest.raises(ReassignError, match="nothing moved"):
+            move_recording(settings, recording_id, "c001")
+
+        assert sorted(p.name for p in settings.data_dir.rglob("*") if p.is_file()) == before
+
 
 def test_checksums_still_verify_afterwards(settings: Settings, recording_id: str) -> None:
     result = move_recording(settings, recording_id, "c001")

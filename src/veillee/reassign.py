@@ -16,6 +16,7 @@ import logging
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .config import Settings
 from .storage import audio as audio_storage
@@ -60,6 +61,12 @@ def move_recording(settings: Settings, recording_id: str, new_question_id: str) 
     directory = sidecar.parent
     moved: list[str] = []
 
+    # Validate everything that can fail before the first rename.
+    for kind, entry in payload.get("files", {}).items():
+        if not (directory / str(entry["name"])).exists():
+            raise ReassignError(f"{kind} file is missing: {entry['name']}")
+    parsed = _read_transcripts(settings, recording_id)
+
     # Audio first. Only the names change; the bytes and their checksums do not.
     for kind, entry in payload.get("files", {}).items():
         source = directory / str(entry["name"])
@@ -80,57 +87,62 @@ def move_recording(settings: Settings, recording_id: str, new_question_id: str) 
     sidecar.unlink()
     moved.append(f"{sidecar.name} -> {new_recording_id}.json")
 
-    moved.extend(_move_transcripts(settings, recording_id, new_recording_id, new_question_id))
+    moved.extend(
+        _move_transcripts(settings, recording_id, new_recording_id, new_question_id, parsed)
+    )
     _move_transcript_revisions(settings, recording_id, new_recording_id, moved)
 
     logger.info("refiled %s as %s", recording_id, new_recording_id)
     return Reassignment(recording_id, new_recording_id, tuple(moved))
 
 
+def _read_transcripts(settings: Settings, recording_id: str) -> dict[str, Any]:
+    """Parse every transcript file up front, so a bad one fails before anything moves."""
+    paths = audio_storage.transcript_paths(settings, recording_id)
+    parsed: dict[str, Any] = {}
+    for key, label in (("markdown", "transcript"), ("machine", "machine draft")):
+        if paths[key].exists():
+            try:
+                parsed[key] = loads(paths[key].read_text(encoding="utf-8"))
+            except FrontmatterError as exc:
+                raise ReassignError(f"{label} is unreadable, nothing moved: {exc}") from exc
+    if paths["json"].exists():
+        try:
+            parsed["json"] = json.loads(paths["json"].read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ReassignError(f"machine transcript is unreadable, nothing moved: {exc}") from exc
+    return parsed
+
+
 def _move_transcripts(
-    settings: Settings, recording_id: str, new_recording_id: str, new_question_id: str
+    settings: Settings,
+    recording_id: str,
+    new_recording_id: str,
+    new_question_id: str,
+    parsed: dict[str, Any],
 ) -> list[str]:
     """Carry the transcript across, keeping any review already done on it."""
     moved: list[str] = []
     paths = audio_storage.transcript_paths(settings, recording_id)
     new_paths = audio_storage.transcript_paths(settings, new_recording_id)
 
-    markdown = paths["markdown"]
-    if markdown.exists():
-        try:
-            metadata, body = loads(markdown.read_text(encoding="utf-8"))
-        except FrontmatterError as exc:
-            raise ReassignError(f"transcript is unreadable, nothing moved: {exc}") from exc
-        metadata["recording_id"] = new_recording_id
-        metadata["question_id"] = new_question_id
-        new_paths["markdown"].parent.mkdir(parents=True, exist_ok=True)
-        atomic_write(new_paths["markdown"], dumps(metadata, body))
-        markdown.unlink()
-        moved.append(f"{markdown.name} -> {new_paths['markdown'].name}")
+    for key in ("markdown", "machine"):
+        if key not in parsed:
+            continue
+        metadata, body = parsed[key]
+        metadata = {**metadata, "recording_id": new_recording_id, "question_id": new_question_id}
+        new_paths[key].parent.mkdir(parents=True, exist_ok=True)
+        atomic_write(new_paths[key], dumps(metadata, body))
+        paths[key].unlink()
+        moved.append(f"{paths[key].name} -> {new_paths[key].name}")
 
-    raw = paths["json"]
-    if raw.exists():
-        try:
-            payload = json.loads(raw.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise ReassignError(f"machine transcript is unreadable: {exc}") from exc
+    if "json" in parsed:
+        payload = parsed["json"]
         if isinstance(payload, dict):
             payload = {**payload, "recording_id": new_recording_id, "question_id": new_question_id}
         atomic_write(new_paths["json"], json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
-        raw.unlink()
-        moved.append(f"{raw.name} -> {new_paths['json'].name}")
-
-    draft = paths["machine"]
-    if draft.exists():
-        try:
-            metadata, body = loads(draft.read_text(encoding="utf-8"))
-        except FrontmatterError as exc:
-            raise ReassignError(f"machine draft is unreadable: {exc}") from exc
-        metadata["recording_id"] = new_recording_id
-        metadata["question_id"] = new_question_id
-        atomic_write(new_paths["machine"], dumps(metadata, body))
-        draft.unlink()
-        moved.append(f"{draft.name} -> {new_paths['machine'].name}")
+        paths["json"].unlink()
+        moved.append(f"{paths['json'].name} -> {new_paths['json'].name}")
     return moved
 
 
