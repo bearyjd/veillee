@@ -71,8 +71,8 @@
 {% endif %}
 
 {% if revisions and not read_only %}
-<section class="answer-history" aria-labelledby="history-heading">
-  <h2 id="history-heading">Earlier versions</h2>
+<details class="answer-history">
+  <summary class="answer-history-toggle">Earlier versions ({{ revisions | length }})</summary>
   <p class="card-note">Every save keeps the version before it. These are for reading only.</p>
   <ul>
     {% for revision in revisions %}
@@ -85,7 +85,7 @@
     </li>
     {% endfor %}
   </ul>
-</section>
+</details>
 {% endif %}
 
 <!-- ---- Photographs ---------------------------------------------------- -->

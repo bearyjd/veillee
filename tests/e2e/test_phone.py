@@ -198,7 +198,8 @@ class TestTheTouchPromise:
         httpx.post(live_server.url("/api/answer/q040"), json={"body": "Third."}, timeout=30)
 
         page.goto(live_server.url("/question/q040"), wait_until="load")  # type: ignore
-        page.wait_for_selector(".answer-history summary", timeout=20_000)  # type: ignore
+        page.wait_for_selector(".answer-history-toggle", timeout=20_000)  # type: ignore
+        page.click(".answer-history-toggle")  # type: ignore
         page.wait_for_timeout(400)  # type: ignore
 
         heights = page.evaluate(  # type: ignore

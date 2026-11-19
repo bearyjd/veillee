@@ -207,6 +207,13 @@ class TestAnswerHistory:
         assert "First telling." in page
         assert "Second telling." in page
 
+    def test_history_is_one_collapsed_group(self, writer_client) -> None:
+        for text in ("One.", "Two.", "Three."):
+            writer_client.post("/api/answer/q016", json={"body": text})
+        page = writer_client.get("/question/q016").text
+        assert '<details class="answer-history">' in page
+        assert page.count("<details") == 1 + page.count("answer-read")
+
     def test_family_never_sees_earlier_versions(self, writer_client, family_client) -> None:
         for text in ("SECRET draft.", ""):
             assert writer_client.post("/api/answer/q015", json={"body": text}).status_code == 200
