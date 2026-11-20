@@ -185,3 +185,26 @@ def test_a_transcript_written_by_the_worker_is_not_reviewed(settings: Settings, 
     metadata, _ = loads(rendered)
     assert metadata["reviewed"] is False
     assert audio_storage.transcript_paths(settings, recording.recording_id)["markdown"]
+
+
+class TestAdminListingReadsTheFile:
+    def test_the_listing_follows_the_transcript_file_not_a_stale_index(
+        self, live_server: LiveServer, sample_m4a
+    ) -> None:
+        """/admin read the file's flag on main; a stale index row must not override it."""
+        recording_id = _recording_with_transcript(live_server, sample_m4a)
+        path = live_server.data_dir / "transcripts" / recording_id[:4] / recording_id[4:6]
+        path = path / f"{recording_id}.md"
+        text = path.read_text(encoding="utf-8")
+
+        path.write_text(text.replace("reviewed: false", "reviewed: true"), encoding="utf-8")
+        assert "not yet reviewed" not in httpx.get(live_server.url("/admin"), timeout=30).text
+
+        with closing_connection(live_server.db_path) as connection:
+            connection.execute(
+                "UPDATE recordings SET transcript_reviewed = 1 WHERE recording_id = ?",
+                (recording_id,),
+            )
+            connection.commit()
+        path.write_text(text, encoding="utf-8")
+        assert "not yet reviewed" in httpx.get(live_server.url("/admin"), timeout=30).text

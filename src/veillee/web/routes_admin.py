@@ -23,7 +23,12 @@ from ..storage.answers import atomic_write, save_revision
 from ..storage.frontmatter import FrontmatterError
 from ..storage.gitrepo import autocommit
 from ..storage.paths import utc_now_iso
-from ..storage.transcript import mark_reviewed, read_transcript, render_transcript
+from ..storage.transcript import (
+    mark_reviewed,
+    read_reviewed,
+    read_transcript,
+    render_transcript,
+)
 from .deps import get_bank, get_db, get_settings
 from .templating import build_templates
 
@@ -47,7 +52,7 @@ def admin_home(
             {
                 "recording": recording,
                 "has_transcript": transcript.exists(),
-                "reviewed": recording.transcript_reviewed,
+                "reviewed": bool(read_reviewed(transcript)),
                 "question": bank.by_id(recording.question_id),
             }
         )
