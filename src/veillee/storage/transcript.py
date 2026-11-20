@@ -1,6 +1,6 @@
 """The transcript document: the one place its format and `reviewed` flag live.
 
-Producers (transcription), readers (audio indexing, /admin, reassign) and the
+Producers (transcription), readers (audio indexing, reassign) and the /admin
 editor all go through here so the key names and the default can not drift.
 """
 
@@ -64,10 +64,6 @@ def read_transcript(path: Path) -> Transcript:
 
 def render_transcript(transcript: Transcript) -> str:
     return dumps(dict(transcript.metadata), transcript.body)
-
-
-def write_transcript_file(path: Path, transcript: Transcript) -> None:
-    path.write_text(render_transcript(transcript), encoding="utf-8")
 
 
 def mark_reviewed(transcript: Transcript, reviewed: bool) -> Transcript:

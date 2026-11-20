@@ -35,7 +35,9 @@ def test_round_trip(tmp_path: Path) -> None:
         language="en",
     )
     path = tmp_path / "t.md"
-    fmt.write_transcript_file(path, fmt.Transcript(metadata=metadata, body="body text"))
+    path.write_text(
+        fmt.render_transcript(fmt.Transcript(metadata=metadata, body="body text")), encoding="utf-8"
+    )
     loaded = fmt.read_transcript(path)
     assert loaded.metadata == metadata
     assert loaded.body == "body text"
