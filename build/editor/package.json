@@ -7,7 +7,7 @@
     "build": "esbuild entry.js --bundle --format=iife --global-name=VeilleeEditor --minify --loader:.ttf=empty --loader:.woff=empty --loader:.woff2=empty --outfile=../../src/veillee/web/static/vendor/editor.js"
   },
   "dependencies": {
-    "@milkdown/crepe": "7.6.2"
+    "@milkdown/crepe": "7.23.0"
   },
   "devDependencies": {
     "esbuild": "0.28.2"
