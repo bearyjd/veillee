@@ -243,9 +243,31 @@ class TestAnswerHistory:
         writer_client.post("/api/answer/q013", json={"body": "Only one."})
         assert "Earlier versions" not in writer_client.get("/question/q013").text
 
-    def test_history_has_no_restore_control(self, writer_client) -> None:
+    def test_history_offers_restore_and_it_works(self, writer_client) -> None:
         for text in ("One.", "Two."):
             writer_client.post("/api/answer/q014", json={"body": text})
         page = writer_client.get("/question/q014").text
-        assert "Earlier versions" in page
-        assert "restore" not in page.lower()
+        assert 'action="/api/answer/q014/restore"' in page
+        import re
+
+        stamp = re.search(r'name="stamp" value="([^"]+)"', page).group(1)
+        response = writer_client.post(
+            "/api/answer/q014/restore", data={"stamp": stamp}, follow_redirects=False
+        )
+        assert response.status_code == 303
+        assert writer_client.get("/api/answer/q014").json()["body"] == "One."
+        bodies = writer_client.get("/question/q014").text
+        assert "Two." in bodies  # the replaced version is itself kept
+
+    def test_restore_unknown_stamp_is_404(self, writer_client) -> None:
+        writer_client.post("/api/answer/q014", json={"body": "x"})
+        response = writer_client.post("/api/answer/q014/restore", data={"stamp": "bogus"})
+        assert response.status_code == 404
+
+    def test_family_cannot_restore_nor_see_the_button(self, writer_client, family_client) -> None:
+        for text in ("One.", "Two."):
+            writer_client.post("/api/answer/q019", json={"body": text})
+        assert "restore" not in family_client.get("/question/q019").text.lower()
+        response = family_client.post("/api/answer/q019/restore", data={"stamp": "x"})
+        assert response.status_code in (403, 405)
+        assert writer_client.get("/api/answer/q019").json()["body"] == "Two."

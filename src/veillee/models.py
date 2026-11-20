@@ -49,6 +49,7 @@ class AnswerRevision:
     saved_at: str
     word_count: int
     body: str
+    stamp: str = ""
 
 
 @dataclass(frozen=True)

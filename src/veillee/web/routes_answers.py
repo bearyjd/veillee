@@ -17,7 +17,8 @@ from ..config import Settings
 from ..index import upsert_answer
 from ..models import STATUS_ANSWERED, STATUS_LATER, STATUS_SKIPPED, Question
 from ..questions import QuestionBank, append_custom_question
-from ..storage.answers import load_answer, write_answer
+from ..storage import frontmatter
+from ..storage.answers import load_answer, restore_revision, write_answer
 from ..storage.gitrepo import autocommit
 from .deps import app_state, get_bank, get_db, get_settings
 from .json_body import JSON_BODY_LIMIT_BYTES, read_capped_json
@@ -87,6 +88,32 @@ async def save_answer(
         logger.error("could not save %s: %s", question_id, exc)
         raise HTTPException(status_code=500, detail=f"Could not write to disk: {exc}") from exc
     return JSONResponse(result)
+
+
+@router.post("/api/answer/{question_id}/restore")
+def restore_answer(
+    question_id: str,
+    stamp: str = Form(...),
+    connection: sqlite3.Connection = Depends(get_db),
+    bank: QuestionBank = Depends(get_bank),
+    settings: Settings = Depends(get_settings),
+) -> RedirectResponse:
+    """Bring back an earlier version. The version it replaces is kept too."""
+    question = _require_question(bank, question_id)
+    try:
+        answer = restore_revision(settings, question, stamp)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="No such earlier version") from exc
+    except (frontmatter.FrontmatterError, OSError) as exc:
+        logger.error("could not restore %s@%s: %s", question_id, stamp, exc)
+        raise HTTPException(status_code=500, detail=f"Could not restore: {exc}") from exc
+    upsert_answer(connection, answer)
+    autocommit(
+        settings.data_dir,
+        f"answer: {question.id} restored",
+        enabled=settings.git_autocommit,
+    )
+    return RedirectResponse(f"/question/{question_id}", status_code=303)
 
 
 @router.post("/question/{question_id}/skip")
