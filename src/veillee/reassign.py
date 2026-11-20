@@ -101,7 +101,9 @@ def _read_transcripts(settings: Settings, recording_id: str) -> dict[str, Any]:
     """Parse every transcript file up front, so a bad one fails before anything moves."""
     paths = audio_storage.transcript_paths(settings, recording_id)
     parsed: dict[str, Any] = {}
-    for key, label in (("markdown", "transcript"), ("machine", "machine draft")):
+    labels = {"markdown": "transcript", "machine": "machine draft"}
+    for key in audio_storage.TRANSCRIPT_TEXT_KEYS:
+        label = labels[key]
         if paths[key].exists():
             try:
                 parsed[key] = read_transcript(paths[key])
@@ -127,7 +129,7 @@ def _move_transcripts(
     paths = audio_storage.transcript_paths(settings, recording_id)
     new_paths = audio_storage.transcript_paths(settings, new_recording_id)
 
-    for key in ("markdown", "machine"):
+    for key in audio_storage.TRANSCRIPT_TEXT_KEYS:
         if key not in parsed:
             continue
         doc = parsed[key]

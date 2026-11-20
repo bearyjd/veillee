@@ -115,7 +115,7 @@ def save_transcript(
     history = list(metadata.get("history") or [])
     if not any(entry.get("kind") == "machine_original" for entry in history):
         # First edit: keep the machine's words verbatim, forever.
-        machine_path = path.with_suffix(".machine.md")
+        machine_path = audio_storage.transcript_paths(settings, recording_id)["machine"]
         if not machine_path.exists():
             atomic_write(machine_path, render_transcript(current))
         history.append(

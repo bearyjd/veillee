@@ -43,6 +43,10 @@ def recording_paths(settings: Settings, recording_id: str, original_suffix: str)
     }
 
 
+# The transcript files that carry frontmatter and text (the json sidecar is raw output).
+TRANSCRIPT_TEXT_KEYS = ("markdown", "machine")
+
+
 def transcript_paths(settings: Settings, recording_id: str) -> dict[str, Path]:
     """Where a recording's transcript and raw machine output live."""
     directory = settings.transcripts_dir / recording_dir_for(recording_id)
