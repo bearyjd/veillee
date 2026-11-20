@@ -15,6 +15,7 @@ from veillee.storage.answers import (
     load_answer,
     move_to_trash,
     read_answer,
+    restore_revision,
     revision_history,
     serialise,
     write_answer,
@@ -124,6 +125,35 @@ class TestWritingAnswers:
         ]
         assert history[0].word_count == 5
         assert history[0].saved_at.startswith("20")
+
+    def test_restore_revision_brings_back_old_body_and_keeps_current(
+        self, settings: Settings, bank: QuestionBank
+    ) -> None:
+        question = bank.by_id("q012")
+        assert question is not None
+        for index in range(3):
+            write_answer(settings, question, f"Version {index} of the story.")
+        target = revision_history(settings, "q012")[-1]
+        assert target.body == "Version 0 of the story."
+
+        restored = restore_revision(settings, question, target.stamp)
+
+        assert restored.body == "Version 0 of the story."
+        assert load_answer(settings, question).body == "Version 0 of the story."  # type: ignore[union-attr]
+        bodies = {read_answer(path).body for path in list_revisions(settings, "q012")}
+        assert "Version 2 of the story." in bodies
+
+    @pytest.mark.parametrize("stamp", ["nope", "../../etc/passwd", "", "20200101-000000-000000"])
+    def test_restore_revision_rejects_unknown_stamps(
+        self, settings: Settings, bank: QuestionBank, stamp: str
+    ) -> None:
+        question = bank.by_id("q012")
+        assert question is not None
+        write_answer(settings, question, "One.")
+        write_answer(settings, question, "Two.")
+        with pytest.raises(LookupError):
+            restore_revision(settings, question, stamp)
+        assert load_answer(settings, question).body == "Two."  # type: ignore[union-attr]
 
     def test_revision_history_is_empty_without_revisions(self, settings: Settings) -> None:
         assert revision_history(settings, "q999") == []

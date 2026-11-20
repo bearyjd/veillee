@@ -275,7 +275,7 @@
 {% if revisions and not read_only %}
 <details class="answer-history" id="earlier-versions">
   <summary class="answer-history-toggle">Earlier versions ({{ revisions | length }})</summary>
-  <p class="card-note">Every save keeps the version before it. These are for reading only.</p>
+  <p class="card-note">Every save keeps the version before it. Restoring one keeps the version it replaces.</p>
   <ul>
     {% for revision in revisions %}
     <li>
@@ -283,6 +283,10 @@
         <summary>{{ revision.saved_at | friendly_date }}, {{ revision.saved_at | friendly_time }}
           &middot; {{ revision.word_count }} words</summary>
         <div class="answer-read">{{ revision.body }}</div>
+        <form method="post" action="/api/answer/{{ question.id }}/restore">
+          <input type="hidden" name="stamp" value="{{ revision.stamp }}">
+          <button type="submit" class="button secondary">Restore this version</button>
+        </form>
       </details>
     </li>
     {% endfor %}

@@ -101,9 +101,28 @@ def revision_history(settings: Settings, question_id: str, limit: int = 50) -> l
             continue
         last_body = answer.body
         history.append(
-            AnswerRevision(saved_at=answer.updated, word_count=answer.word_count, body=answer.body)
+            AnswerRevision(
+                saved_at=answer.updated,
+                word_count=answer.word_count,
+                body=answer.body,
+                stamp=path.stem,
+            )
         )
     return history
+
+
+def restore_revision(settings: Settings, question: Question, stamp: str) -> Answer:
+    """Make an earlier revision the current answer, keeping what it replaces.
+
+    The stamp must name an existing revision for this question (so it can never
+    point outside .revisions/). Raises LookupError for an unknown stamp. The
+    current answer is saved as a revision before the atomic write.
+    """
+    match = next((p for p in list_revisions(settings, question.id) if p.stem == stamp), None)
+    if match is None:
+        raise LookupError(f"no revision {stamp!r} for {question.id}")
+    old = read_answer(match)
+    return write_answer(settings, question, old.body, status=old.status)
 
 
 def move_to_trash(settings: Settings, path: Path) -> Path | None:
