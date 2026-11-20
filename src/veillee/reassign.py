@@ -21,8 +21,9 @@ from typing import Any
 from .config import Settings
 from .storage import audio as audio_storage
 from .storage.answers import atomic_write
-from .storage.frontmatter import FrontmatterError, dumps, loads
+from .storage.frontmatter import FrontmatterError
 from .storage.paths import parse_question_id
+from .storage.transcript import Transcript, read_transcript, render_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def _read_transcripts(settings: Settings, recording_id: str) -> dict[str, Any]:
     for key, label in (("markdown", "transcript"), ("machine", "machine draft")):
         if paths[key].exists():
             try:
-                parsed[key] = loads(paths[key].read_text(encoding="utf-8"))
+                parsed[key] = read_transcript(paths[key])
             except FrontmatterError as exc:
                 raise ReassignError(f"{label} is unreadable, nothing moved: {exc}") from exc
     if paths["json"].exists():
@@ -129,10 +130,16 @@ def _move_transcripts(
     for key in ("markdown", "machine"):
         if key not in parsed:
             continue
-        metadata, body = parsed[key]
-        metadata = {**metadata, "recording_id": new_recording_id, "question_id": new_question_id}
+        doc = parsed[key]
+        metadata = {
+            **doc.metadata,
+            "recording_id": new_recording_id,
+            "question_id": new_question_id,
+        }
         new_paths[key].parent.mkdir(parents=True, exist_ok=True)
-        atomic_write(new_paths[key], dumps(metadata, body))
+        atomic_write(
+            new_paths[key], render_transcript(Transcript(metadata=metadata, body=doc.body))
+        )
         paths[key].unlink()
         moved.append(f"{paths[key].name} -> {new_paths[key].name}")
 

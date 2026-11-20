@@ -22,6 +22,7 @@ from ..storage.answers import atomic_write, save_revision
 from ..storage.frontmatter import FrontmatterError, dumps, loads
 from ..storage.gitrepo import autocommit
 from ..storage.paths import utc_now_iso
+from ..storage.transcript import read_reviewed
 from .deps import get_bank, get_db, get_settings
 from .templating import build_templates
 
@@ -41,13 +42,7 @@ def admin_home(
     rows = []
     for recording in recordings:
         transcript = audio_storage.transcript_paths(settings, recording.recording_id)["markdown"]
-        reviewed = False
-        if transcript.exists():
-            try:
-                metadata, _ = loads(transcript.read_text(encoding="utf-8"))
-                reviewed = bool(metadata.get("reviewed", False))
-            except (FrontmatterError, OSError):
-                reviewed = False
+        reviewed = bool(read_reviewed(transcript)) if transcript.exists() else False
         rows.append(
             {
                 "recording": recording,

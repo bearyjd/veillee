@@ -13,8 +13,8 @@ from pathlib import Path
 from ..config import Settings
 from ..models import Recording
 from .answers import atomic_write
-from .frontmatter import FrontmatterError, loads
 from .paths import recording_dir_for
+from .transcript import read_reviewed
 
 SIDECAR_VERSION = 1
 CHUNK_BYTES = 1024 * 1024
@@ -138,15 +138,11 @@ def _transcript_is_reviewed(transcript: Path | None, payload: dict[str, object])
     the transcript carried the flag.
     """
     if transcript is not None and transcript.exists():
-        try:
-            metadata, _ = loads(transcript.read_text(encoding="utf-8"))
-        except (FrontmatterError, OSError):
-            # An unreadable transcript is a problem for the caller to report,
-            # not a reason to lose the rest of the recording.
-            pass
-        else:
-            if "reviewed" in metadata:
-                return bool(metadata["reviewed"])
+        # An unreadable transcript is a problem for the caller to report,
+        # not a reason to lose the rest of the recording.
+        recorded = read_reviewed(transcript)
+        if recorded is not None:
+            return recorded
     return bool(payload.get("transcript_reviewed", False))
 
 

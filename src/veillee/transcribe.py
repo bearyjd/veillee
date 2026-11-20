@@ -23,8 +23,8 @@ import httpx
 
 from .config import Settings
 from .storage.answers import atomic_write
-from .storage.frontmatter import dumps
 from .storage.paths import utc_now_iso
+from .storage.transcript import Transcript, build_transcript_metadata, render_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -224,24 +224,22 @@ def render_markdown(
     transcription: Transcription, *, recording_id: str, question_id: str, created: str
 ) -> str:
     """The transcript as it is stored: frontmatter, then timestamped segments."""
-    metadata = {
-        "recording_id": recording_id,
-        "question_id": question_id,
-        "created": created,
-        "transcribed": utc_now_iso(),
-        "backend": transcription.backend,
-        "model": transcription.model,
-        "language": transcription.language,
-        "reviewed": False,
-        "note": "Machine draft. Not shown to him. Correct it before trusting it.",
-    }
+    metadata = build_transcript_metadata(
+        recording_id=recording_id,
+        question_id=question_id,
+        created=created,
+        transcribed=utc_now_iso(),
+        backend=transcription.backend,
+        model=transcription.model,
+        language=transcription.language,
+    )
     lines = [
         f"[{format_timestamp(segment.start)}] {apply_spoken_punctuation(segment.text)}"
         for segment in transcription.segments
         if segment.text
     ]
     body = "\n\n".join(lines) if lines else "_(no speech detected)_"
-    return dumps(metadata, body)
+    return render_transcript(Transcript(metadata=metadata, body=body))
 
 
 def write_transcript(
