@@ -267,3 +267,15 @@ def test_the_committed_test_fixtures_are_present() -> None:
         "sample-photo-rotated.jpg",
     ):
         assert (FIXTURES / name).exists(), f"{name} is not committed"
+
+
+def test_transcript_revisions_dir_matches_save_revision(settings: Settings) -> None:
+    from veillee.storage import audio as audio_storage
+    from veillee.storage.answers import save_revision
+
+    source = settings.data_dir / "t.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("x", encoding="utf-8")
+    saved = save_revision(settings, audio_storage.transcript_revision_key("rec1"), source)
+    assert saved is not None
+    assert saved.parent == audio_storage.transcript_revisions_dir(settings, "rec1")

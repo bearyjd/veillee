@@ -158,8 +158,8 @@ def _move_transcripts(
 def _move_transcript_revisions(
     settings: Settings, recording_id: str, new_recording_id: str, moved: list[str]
 ) -> None:
-    old = settings.revisions_dir / f"transcript-{recording_id}"
+    old = audio_storage.transcript_revisions_dir(settings, recording_id)
     if old.is_dir():
-        new = settings.revisions_dir / f"transcript-{new_recording_id}"
+        new = audio_storage.transcript_revisions_dir(settings, new_recording_id)
         shutil.move(str(old), str(new))
         moved.append(f"{old.name}/ -> {new.name}/")

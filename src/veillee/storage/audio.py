@@ -57,6 +57,15 @@ def transcript_paths(settings: Settings, recording_id: str) -> dict[str, Path]:
     }
 
 
+def transcript_revision_key(recording_id: str) -> str:
+    """The .revisions/ folder name under which a transcript's edits are kept."""
+    return f"transcript-{recording_id}"
+
+
+def transcript_revisions_dir(settings: Settings, recording_id: str) -> Path:
+    return settings.revisions_dir / transcript_revision_key(recording_id)
+
+
 def _file_entry(path: Path) -> dict[str, object]:
     return {"name": path.name, "sha256": sha256_file(path), "bytes": path.stat().st_size}
 

@@ -109,7 +109,7 @@ def save_transcript(
     except FrontmatterError as exc:
         raise HTTPException(status_code=500, detail=f"Transcript is unreadable: {exc}") from exc
 
-    save_revision(settings, f"transcript-{recording_id}", path)
+    save_revision(settings, audio_storage.transcript_revision_key(recording_id), path)
 
     metadata = current.metadata
     history = list(metadata.get("history") or [])

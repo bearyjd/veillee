@@ -329,7 +329,7 @@ async def delete_recording(
     transcripts = audio_storage.transcript_paths(settings, recording_id)
     doomed.extend(transcripts.values())
     # Edits to the transcript are kept under .revisions/, and follow it too.
-    doomed.append(settings.revisions_dir / f"transcript-{recording_id}")
+    doomed.append(audio_storage.transcript_revisions_dir(settings, recording_id))
 
     moved = []
     for path in doomed:
