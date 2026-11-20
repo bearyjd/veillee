@@ -87,7 +87,7 @@ class TestHeIsNeverShownATranscript:
 
 class TestEditingPreservesTheMachineOriginal:
     def test_the_first_edit_keeps_the_machine_wording_beside_it(
-        self, live_server: LiveServer, sample_m4a
+        self, live_server: LiveServer, sample_m4a, settings: Settings
     ) -> None:
         recording_id = _recording_with_transcript(live_server, sample_m4a)
         corrected = "Her name was Bridget Mulcahy of Baile Bhuirne"
@@ -100,10 +100,10 @@ class TestEditingPreservesTheMachineOriginal:
         )
         assert response.status_code == 303
 
-        year, month = recording_id[:4], recording_id[4:6]
-        folder = live_server.data_dir / "transcripts" / year / month
-        edited = (folder / f"{recording_id}.md").read_text(encoding="utf-8")
-        machine = (folder / f"{recording_id}.machine.md").read_text(encoding="utf-8")
+        server_settings = Settings(**{**vars(settings), "data_dir": live_server.data_dir})
+        paths = audio_storage.transcript_paths(server_settings, recording_id)
+        edited = paths["markdown"].read_text(encoding="utf-8")
+        machine = paths["machine"].read_text(encoding="utf-8")
 
         assert corrected in edited
         assert WRONG_WORDS not in edited

@@ -43,6 +43,10 @@ def recording_paths(settings: Settings, recording_id: str, original_suffix: str)
     }
 
 
+# The transcript files that carry frontmatter and text (the json sidecar is raw output).
+TRANSCRIPT_TEXT_KEYS = ("markdown", "machine")
+
+
 def transcript_paths(settings: Settings, recording_id: str) -> dict[str, Path]:
     """Where a recording's transcript and raw machine output live."""
     directory = settings.transcripts_dir / recording_dir_for(recording_id)
@@ -51,6 +55,15 @@ def transcript_paths(settings: Settings, recording_id: str) -> dict[str, Path]:
         "json": directory / f"{recording_id}.json",
         "machine": directory / f"{recording_id}.machine.md",
     }
+
+
+def transcript_revision_key(recording_id: str) -> str:
+    """The .revisions/ folder name under which a transcript's edits are kept."""
+    return f"transcript-{recording_id}"
+
+
+def transcript_revisions_dir(settings: Settings, recording_id: str) -> Path:
+    return settings.revisions_dir / transcript_revision_key(recording_id)
 
 
 def _file_entry(path: Path) -> dict[str, object]:

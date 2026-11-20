@@ -101,7 +101,9 @@ def _read_transcripts(settings: Settings, recording_id: str) -> dict[str, Any]:
     """Parse every transcript file up front, so a bad one fails before anything moves."""
     paths = audio_storage.transcript_paths(settings, recording_id)
     parsed: dict[str, Any] = {}
-    for key, label in (("markdown", "transcript"), ("machine", "machine draft")):
+    labels = {"markdown": "transcript", "machine": "machine draft"}
+    for key in audio_storage.TRANSCRIPT_TEXT_KEYS:
+        label = labels[key]
         if paths[key].exists():
             try:
                 parsed[key] = read_transcript(paths[key])
@@ -127,7 +129,7 @@ def _move_transcripts(
     paths = audio_storage.transcript_paths(settings, recording_id)
     new_paths = audio_storage.transcript_paths(settings, new_recording_id)
 
-    for key in ("markdown", "machine"):
+    for key in audio_storage.TRANSCRIPT_TEXT_KEYS:
         if key not in parsed:
             continue
         doc = parsed[key]
@@ -156,8 +158,8 @@ def _move_transcripts(
 def _move_transcript_revisions(
     settings: Settings, recording_id: str, new_recording_id: str, moved: list[str]
 ) -> None:
-    old = settings.revisions_dir / f"transcript-{recording_id}"
+    old = audio_storage.transcript_revisions_dir(settings, recording_id)
     if old.is_dir():
-        new = settings.revisions_dir / f"transcript-{new_recording_id}"
+        new = audio_storage.transcript_revisions_dir(settings, new_recording_id)
         shutil.move(str(old), str(new))
         moved.append(f"{old.name}/ -> {new.name}/")

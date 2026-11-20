@@ -177,7 +177,7 @@ class TestTheIndexUpdatesWithoutWaitingForARebuild:
 
         assert read_reviewed(paths["markdown"]) is True
         assert _transcript_is_reviewed(paths["markdown"], {}) is True
-        machine = paths["markdown"].with_suffix(".machine.md")
+        machine = paths["machine"]
         assert read_reviewed(machine) is False
 
         unreview = httpx.post(
