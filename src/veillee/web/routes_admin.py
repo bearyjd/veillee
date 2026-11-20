@@ -8,6 +8,7 @@ transcripts are drafts on this page only, marked plainly as unreviewed.
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -19,9 +20,15 @@ from ..config import Settings
 from ..questions import QuestionBank
 from ..storage import audio as audio_storage
 from ..storage.answers import atomic_write, save_revision
-from ..storage.frontmatter import FrontmatterError, dumps, loads
+from ..storage.frontmatter import FrontmatterError
 from ..storage.gitrepo import autocommit
 from ..storage.paths import utc_now_iso
+from ..storage.transcript import (
+    mark_reviewed,
+    read_reviewed,
+    read_transcript,
+    render_transcript,
+)
 from .deps import get_bank, get_db, get_settings
 from .templating import build_templates
 
@@ -41,18 +48,11 @@ def admin_home(
     rows = []
     for recording in recordings:
         transcript = audio_storage.transcript_paths(settings, recording.recording_id)["markdown"]
-        reviewed = False
-        if transcript.exists():
-            try:
-                metadata, _ = loads(transcript.read_text(encoding="utf-8"))
-                reviewed = bool(metadata.get("reviewed", False))
-            except (FrontmatterError, OSError):
-                reviewed = False
         rows.append(
             {
                 "recording": recording,
                 "has_transcript": transcript.exists(),
-                "reviewed": reviewed,
+                "reviewed": bool(read_reviewed(transcript)),
                 "question": bank.by_id(recording.question_id),
             }
         )
@@ -79,7 +79,7 @@ def view_transcript(
 ) -> HTMLResponse:
     path = _transcript_or_404(settings, recording_id)
     try:
-        metadata, body = loads(path.read_text(encoding="utf-8"))
+        transcript = read_transcript(path)
     except FrontmatterError as exc:
         raise HTTPException(status_code=500, detail=f"Transcript is unreadable: {exc}") from exc
     return templates.TemplateResponse(
@@ -87,8 +87,8 @@ def view_transcript(
         "admin_transcript.html",
         {
             "recording": repository.get_recording(connection, recording_id),
-            "metadata": metadata,
-            "body": body,
+            "metadata": transcript.metadata,
+            "body": transcript.body,
             "recording_id": recording_id,
         },
     )
@@ -105,18 +105,19 @@ def save_transcript(
     """Save an edit. The machine original is preserved, never overwritten."""
     path = _transcript_or_404(settings, recording_id)
     try:
-        metadata, existing = loads(path.read_text(encoding="utf-8"))
+        current = read_transcript(path)
     except FrontmatterError as exc:
         raise HTTPException(status_code=500, detail=f"Transcript is unreadable: {exc}") from exc
 
     save_revision(settings, f"transcript-{recording_id}", path)
 
+    metadata = current.metadata
     history = list(metadata.get("history") or [])
     if not any(entry.get("kind") == "machine_original" for entry in history):
         # First edit: keep the machine's words verbatim, forever.
         machine_path = path.with_suffix(".machine.md")
         if not machine_path.exists():
-            atomic_write(machine_path, dumps(dict(metadata), existing))
+            atomic_write(machine_path, render_transcript(current))
         history.append(
             {
                 "kind": "machine_original",
@@ -126,8 +127,13 @@ def save_transcript(
         )
     history.append({"kind": "edit", "saved": utc_now_iso()})
 
-    updated = {**metadata, "reviewed": bool(reviewed), "updated": utc_now_iso(), "history": history}
-    atomic_write(path, dumps(updated, body))
+    edited = mark_reviewed(
+        replace(
+            current, metadata={**metadata, "updated": utc_now_iso(), "history": history}, body=body
+        ),
+        bool(reviewed),
+    )
+    atomic_write(path, render_transcript(edited))
     # The file is the record, but the index is what /admin reads. Without this
     # he would review a transcript, be redirected back, and be asked to review
     # it again - and a rebuild could not rescue him, because until this was

@@ -172,3 +172,20 @@ class TestTheIndexUpdatesWithoutWaitingForARebuild:
         assert _reviewed_in_index(server_settings, recording_id) == 1, (
             "the file says reviewed and the index still says otherwise"
         )
+        from veillee.storage.audio import _transcript_is_reviewed
+        from veillee.storage.transcript import read_reviewed
+
+        assert read_reviewed(paths["markdown"]) is True
+        assert _transcript_is_reviewed(paths["markdown"], {}) is True
+        machine = paths["markdown"].with_suffix(".machine.md")
+        assert read_reviewed(machine) is False
+
+        unreview = httpx.post(
+            live_server.url(f"/admin/transcript/{recording_id}"),
+            data={"body": "He walked the orchard."},
+            follow_redirects=False,
+            timeout=30,
+        )
+        assert unreview.status_code in (200, 303)
+        assert read_reviewed(paths["markdown"]) is False
+        assert _reviewed_in_index(server_settings, recording_id) == 0
